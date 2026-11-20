@@ -1,0 +1,1397 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Frecuencia de Fondo · Estación Erial-7</title>
+<style>
+:root{
+  --bg:#060a08;--panel:#0c1410;--card:#111d17;--border:#243d2b;
+  --fg:#c8f2d0;--mut:#789c82;--accent:#4ade80;--warn:#eab308;--bad:#ef4444;
+  box-sizing:border-box;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:14px/1.45 ui-monospace,"Cascadia Code","Fira Code",Consolas,monospace;
+  padding:env(safe-area-inset-top,8px) 8px env(safe-area-inset-bottom,12px);
+}
+main{max-width:760px;margin:0 auto}
+.terminal{
+  background:var(--panel);border:2px solid var(--border);border-radius:10px;
+  overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.75);position:relative;
+}
+.terminal::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0px,rgba(0,0,0,.14) 1px,transparent 1px,transparent 3px);
+}
+.topbar{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:8px 12px;background:#080e0b;border-bottom:1px solid var(--border);font-size:12px;
+}
+.topbar b{color:var(--accent);letter-spacing:1px}
+.stats{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.pill{background:#122019;border:1px solid var(--border);padding:2px 7px;border-radius:4px}
+.pill.night{border-color:#991b1b;color:#fca5a5;background:#1f0d0d}
+.pill.lowtime{border-color:#ca8a04;color:#fde047}
+.pill.live{border-color:#22c55e;color:#86efac;background:#0d2618}
+#tabs{display:flex;overflow-x:auto;background:#080e0b;border-bottom:1px solid var(--border)}
+.tab{
+  flex:none;background:transparent;color:var(--mut);border:0;border-right:1px solid var(--border);
+  padding:10px 13px;font:inherit;font-size:13px;cursor:pointer;transition:.15s;
+}
+.tab:hover{background:#111e17;color:var(--fg)}
+.tab.on{background:#172b20;color:var(--fg);box-shadow:inset 0 -3px var(--accent)}
+.bd{background:var(--warn);color:#000;border-radius:3px;padding:0 5px;font-weight:700;font-size:11px;margin-left:4px}
+#win{padding:14px;min-height:420px}
+button{
+  font:inherit;font-size:13px;background:#1f5c38;color:#ecfdf5;
+  border:1px solid #348a57;border-radius:5px;padding:8px 12px;cursor:pointer;
+}
+button:hover:not(:disabled){background:#277346}
+button.alt{background:#101b15;color:var(--fg);border:1px solid var(--border)}
+button.alt:hover:not(:disabled){background:#182920}
+button.bad{background:#7f1d1d;border-color:#b91c1c;color:#fef2f2}
+button:disabled{opacity:.35;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.between{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:8px 0}
+.card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px;margin:8px 0}
+.mut{color:var(--mut)}
+.mail-layout{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:620px){.mail-layout{grid-template-columns:245px 1fr}}
+.mail-list{border:1px solid var(--border);border-radius:6px;background:#09100c;max-height:330px;overflow-y:auto}
+.mi{padding:9px 10px;border-bottom:1px solid #18291e;cursor:pointer;font-size:12px}
+.mi:hover{background:#121f18}
+.mi.un{font-weight:700;border-left:3px solid var(--accent);background:#101c16}
+.mi.sel{background:#192e23}
+.mail-body{white-space:pre-line;font-size:13px;line-height:1.55}
+#cv{width:100%;height:300px;border:1px solid var(--border);border-radius:6px;background:#03060a;display:block;touch-action:none;cursor:grab}
+#cv:active{cursor:grabbing}
+.crt-wrap{
+  background:#040404;border:2px solid #2b382e;border-radius:6px;padding:8px;
+  display:flex;flex-direction:column;align-items:center;position:relative;
+}
+#crt{width:100%;max-width:420px;height:240px;image-rendering:pixelated;background:#0a0a0a;border:1px solid #222;display:block}
+#spec{width:100%;height:190px;background:#040806;border:1px solid var(--border);border-radius:6px;display:block}
+.databox{
+  background:#070c09;border:1px solid var(--border);border-radius:5px;padding:9px;
+  font-size:12px;color:#a7f3d0;white-space:pre-wrap;margin-top:8px;
+}
+.databox.anom{border-color:#991b1b;color:#fca5a5;background:#140808}
+input[type=range]{flex:1;accent-color:var(--accent);cursor:pointer}
+input[type=text]{
+  width:100%;max-width:340px;background:#070d0a;color:var(--fg);
+  border:1px solid #348a57;border-radius:5px;padding:9px 12px;font:14px inherit;
+  outline:none;
+}
+input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(74,222,128,.2)}
+textarea{
+  width:100%;min-height:95px;background:#070d0a;color:var(--fg);
+  border:1px solid var(--border);border-radius:5px;padding:8px;font:12px inherit;
+}
+#toast{
+  margin-top:8px;padding:8px 12px;border-radius:6px;background:#15291e;
+  border:1px solid var(--border);color:var(--fg);text-align:center;font-size:12px;min-height:34px;
+}
+#toast.ok{border-color:#22c55e;background:#0f291a}
+#toast.bad{border-color:#ef4444;background:#2b1111;color:#fecaca}
+</style>
+</head>
+<body>
+<main>
+<div class="terminal">
+  <div class="topbar">
+    <b>ERIAL-7 // TERMINAL DE ESCUCHA</b>
+    <div class="stats" id="st"></div>
+  </div>
+  <div id="tabs"></div>
+  <div id="win"></div>
+</div>
+<div id="toast" style="visibility:hidden"></div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const CLASSES = ["Estrella", "Planeta", "Asteroide", "Satelite", "Pulsar"];
+const FREQS = [220, 115, 310, 780, 460];
+const SHIFT_NAMES = ["DIA 1", "DIA 2", "NOCHE 3"];
+const SHIFT_DURATION = 600; // 10 minutos exactos por jornada (600 segundos)
+const W = 1400, H = 900;
+const stars = Array.from({length: 340}, () => [Math.random()*W, Math.random()*H, Math.random()*1.5 + 0.4]);
+
+// Canal de telemetría en tiempo real hacia dashboard.html (mismo origen)
+const LIVE_STORAGE_KEY = "erial7_live_sessions_v1";
+const bc = ("BroadcastChannel" in window) ? new BroadcastChannel("erial7_telemetry") : null;
+
+let V = "intro", G = null, S = null;
+let playerNameInput = "";
+let sessionStartPerf = 0;
+let liveSyncTimer = 0;
+
+let sigs = [], cam = {x: 380, y: 300};
+let en = 100, cap = 100, rd = 0;
+let mail = [], selMail = null, notes = "";
+let shift = 0; // 0 = Dia 1, 1 = Dia 2, 2 = Noche 3
+let shiftLeft = SHIFT_DURATION;
+let srv = null, crashes = 0;
+let cur = null, knobF = 50, knobP = 50, choice = null;
+let savedSatLog = null, satReportsSent = 0;
+let atlas = [0, 0, 0, 0, 0];
+let R = null, sid = 0, last = performance.now();
+let flash = "", flashOk = 1, flashT = 0;
+let drag = null, moved = 0, uiTick = 0;
+let au = null, muted = false, activeVoice = null;
+let pendingEvals = [];
+
+const uid = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+const activeAssign = () => mail.find(m => m.kind === "as" && !m.done && !m.failed);
+
+function formatLocalDateTime(d) {
+  const pad = n => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function buildSessionSnapshot(finalized = false) {
+  if (!S) return null;
+  const elapsedTotal = sessionStartPerf ? +((performance.now() - sessionStartPerf) / 1000).toFixed(1) : (S.totalPlayTime || 0);
+  S.totalPlayTime = elapsedTotal;
+  S.notesLength = notes.trim().length;
+  S.satReportsTotal = satReportsSent;
+  S.status = finalized ? "FINALIZADA" : "EN_CURSO";
+  S.lastUpdated = new Date().toISOString();
+
+  // Incluir las jornadas cerradas + la jornada actualmente en curso si aún no se cierra
+  const shiftsList = [...S.shifts];
+  if (!finalized && R && V !== "survey" && V !== "end") {
+    const liveR = {
+      ...R,
+      time: +((performance.now() - R.t0) / 1000).toFixed(1),
+      energy: Math.round(en),
+      money: G ? G.money : 80
+    };
+    shiftsList.push(liveR);
+  }
+
+  return {
+    id: S.id,
+    playerName: S.playerName,
+    date: S.date,
+    dateISO: S.dateISO,
+    totalPlayTime: S.totalPlayTime,
+    status: S.status,
+    lastUpdated: S.lastUpdated,
+    shifts: shiftsList,
+    survey: S.survey,
+    notesLength: S.notesLength,
+    satReportsTotal: S.satReportsTotal
+  };
+}
+
+function syncLiveTelemetry(finalized = false) {
+  const snap = buildSessionSnapshot(finalized);
+  if (!snap) return;
+  try {
+    const raw = localStorage.getItem(LIVE_STORAGE_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    const idx = list.findIndex(item => item.id === snap.id);
+    if (idx >= 0) list[idx] = snap;
+    else list.push(snap);
+    localStorage.setItem(LIVE_STORAGE_KEY, JSON.stringify(list));
+  } catch (_) {}
+
+  if (bc) {
+    try { bc.postMessage({type: "SESSION_UPDATE", session: snap}); } catch (_) {}
+  }
+}
+
+function fmtClock(sec) {
+  const s = Math.max(0, Math.ceil(sec));
+  const mm = String(Math.floor(s / 60)).padStart(2, "0");
+  const ss = String(s % 60).padStart(2, "0");
+  return `${mm}:${ss}`;
+}
+
+function msg(t, ok = 1) {
+  flash = t; flashOk = ok; flashT = 3.0; updTop();
+}
+
+function beep(freq, dur = 0.08, type = "sine", vol = 0.06) {
+  if (muted) return;
+  try {
+    au = au || new (window.AudioContext || window.webkitAudioContext)();
+    if (au.state === "suspended") au.resume();
+    const o = au.createOscillator(), g = au.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, au.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, au.currentTime + dur);
+    o.connect(g); g.connect(au.destination);
+    o.start(); o.stop(au.currentTime + dur);
+  } catch (_) {}
+}
+
+function stopVoice() {
+  if (!activeVoice) return;
+  try { activeVoice.o.stop(); } catch (_) {}
+  activeVoice = null;
+}
+
+function playSignalAudio(sig) {
+  stopVoice();
+  if (muted) return;
+  try {
+    au = au || new (window.AudioContext || window.webkitAudioContext)();
+    if (au.state === "suspended") au.resume();
+    const o = au.createOscillator(), g = au.createGain();
+    o.type = sig.cat === 4 ? "square" : (sig.cat === 3 ? "sawtooth" : "sine");
+    o.frequency.value = sig.anom ? 92 : FREQS[sig.cat];
+    g.gain.value = 0.07;
+    o.connect(g); g.connect(au.destination);
+    o.start();
+    activeVoice = {o, g, sig, t: 0, max: 3.5};
+  } catch (_) {}
+}
+
+function addMail(subj, body, extra = {}) {
+  const id = uid();
+  mail.unshift({id, subj, body, read: 0, ...extra});
+  if (!selMail) selMail = id;
+  return id;
+}
+
+function makeSignal(cat, anom = false) {
+  let x, y, tries = 0;
+  do {
+    x = 110 + Math.random() * (W - 220);
+    y = 110 + Math.random() * (H - 220);
+  } while (tries++ < 60 && sigs.some(s => s.st !== "gone" && Math.hypot(s.x - x, s.y - y) < 200));
+
+  // Asteroides (2) y Satelites (3) derivan lentamente; Estrella (0), Planeta (1) y Pulsar (4) son fijos
+  const moving = (cat === 2 || cat === 3);
+  const ang = Math.random() * Math.PI * 2;
+  const spd = moving ? (2.2 + Math.random() * 1.4) : 0;
+
+  let textData = "[No hay datos]";
+  if (anom) {
+    textData = "SOS // ПОМОГИТЕ НАМ // ORBITA BAJA // NO MIREN EL NUCLEO // СПАСИТЕ // 00.00.00";
+  } else if (cat === 3) {
+    const satNum = 100 + Math.floor(Math.random() * 899);
+    const alt = 420 + Math.floor(Math.random() * 380);
+    const hex = uid();
+    textData = `TLM-SAT-${satNum} // ALT:${alt}KM // DERIVA:+0.03DEG // PWR:88% // HASH:${hex}`;
+  }
+
+  return {
+    id: ++sid, x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
+    cat, anom, st: "echo", align: 0, prog: 0,
+    tot: 0, bad: 0, acc: 0, seed: Math.random() * 100,
+    tgF: 18 + Math.floor(Math.random() * 64),
+    tgP: 18 + Math.floor(Math.random() * 64),
+    fixed: false, textData
+  };
+}
+
+function ensureSectorDiversity() {
+  const inSector = sigs.filter(s => s.st === "echo" || s.st === "align" || s.st === "dl");
+  for (let c = 0; c < 5; c++) {
+    if (!inSector.some(s => s.cat === c && !s.anom)) {
+      sigs.push(makeSignal(c, false));
+    }
+  }
+  const validAssign = activeAssign();
+  if (shift === 2 && validAssign) {
+    if (!inSector.some(s => s.anom)) {
+      sigs.push(makeSignal(1, true));
+    }
+  } else {
+    sigs.forEach(s => {
+      if (s.anom && s.st === "echo") s.st = "gone";
+    });
+  }
+}
+
+function initShift() {
+  shiftLeft = SHIFT_DURATION;
+  const targetByShift = [
+    [2, 3][Math.floor(Math.random() * 2)],
+    [0, 4][Math.floor(Math.random() * 2)],
+    1
+  ];
+  const targetCat = targetByShift[shift];
+
+  R = {
+    shift: SHIFT_NAMES[shift], status: "EN_CURSO", ok: 0,
+    t0: performance.now(), tFirst: null,
+    slewTime: 0, retunes: 0, invalid: 0,
+    repeats: 0, corrupt: 0, silentErrors: 0,
+    satReports: 0, specUses: 0, anomSent: 0, crash: 0, fix: 0
+  };
+
+  addMail(
+    `ASIGNACION ${SHIFT_NAMES[shift]} // OBJ: ${CLASSES[targetCat].toUpperCase()}`,
+    `Central solicita registro verificado de: ${CLASSES[targetCat]}.\n\n` +
+    `Ventana de transmision: 10:00 minutos antes del cambio de jornada. Si expira el turno sin entrega, la asignacion constara como fallida y se emitira una nueva.\n\n` +
+    `Nota secundaria: si interceptas un Satelite, guarda su telemetria en Espectrograma para remitirla por correo.`,
+    {kind: "as", cat: targetCat, done: false, failed: false}
+  );
+
+  if (shift === 2) {
+    addMail(
+      "AVISO NOCTURNO // SECTOR ERIAL-7",
+      "Anomalias magnetosfericas registradas en la orbita planetaria durante la guardia nocturna.\n\n" +
+      "Examina con precaucion cualquier lectura fuera de norma."
+    );
+  }
+
+  ensureSectorDiversity();
+  syncLiveTelemetry(false);
+}
+
+function start(operatorName) {
+  const cleanName = (operatorName || "").trim();
+  if (!cleanName) {
+    msg("[ERR] Ingresa tu nombre antes de iniciar la guardia", 0);
+    return;
+  }
+  const nowDate = new Date();
+  sessionStartPerf = performance.now();
+  S = {
+    id: uid(),
+    playerName: cleanName,
+    date: formatLocalDateTime(nowDate),
+    dateISO: nowDate.toISOString(),
+    totalPlayTime: 0,
+    status: "EN_CURSO",
+    shifts: [],
+    survey: null
+  };
+  G = {money: 80, a: 0, f: 0, b: 0, spec: 0};
+  cap = 100; en = 100; sigs = []; mail = []; selMail = null; notes = "";
+  shift = 0; shiftLeft = SHIFT_DURATION; srv = null; crashes = 0; cur = null; rd = 0;
+  knobF = 50; knobP = 50; choice = null;
+  savedSatLog = null; satReportsSent = 0; atlas = [0, 0, 0, 0, 0];
+  pendingEvals = [];
+
+  const introId = addMail(
+    `PROTOCOLO OPERATIVO // OP. ${cleanName.toUpperCase()}`,
+    `Bienvenido a Estacion Erial-7, Operador ${cleanName}.\n\n` +
+    "1. En Mapa Estelar, selecciona un eco para orientar las antenas y descargar la trama.\n" +
+    "2. Observa la deriva: Asteroides y Satelites se desplazan lentamente; Estrellas, Planetas y Pulsares permanecen fijos.\n" +
+    "3. En Procesador, ajusta Frecuencia y Polaridad para despejar la estatica CRT y fijar la captura.\n" +
+    "4. Lectura de Espectrograma (modulo disponible en Taller):\n" +
+    "   - Bandas horizontales: Estrella (3 anchas) / Planeta (4 finas).\n" +
+    "   - Columnas verticales: Pulsar (pulsos periodicos) / Satelite (bloques + texto).\n" +
+    "   - Trazas diagonales: Asteroide."
+  );
+  selMail = introId;
+  initShift();
+  V = "mail";
+  render();
+  updTop();
+}
+
+function markFirst() {
+  if (R && R.tFirst === null) {
+    R.tFirst = +((performance.now() - R.t0) / 1000).toFixed(2);
+    syncLiveTelemetry(false);
+  }
+}
+
+function offF(s) { return Math.min(1, Math.abs(knobF - s.tgF) / 45); }
+function offP(s) { return Math.min(1, Math.abs(knobP - s.tgP) / 45); }
+function isTuned(s) { return Math.abs(knobF - s.tgF) <= 7 && Math.abs(knobP - s.tgP) <= 7; }
+
+function updBadges() {
+  const bMail = $("#bd-mail");
+  const bProc = $("#bd-proc");
+  const bSrv = $("#bd-srv");
+  if (bMail) {
+    const un = mail.filter(m => !m.read).length;
+    bMail.textContent = un ? un : "";
+    bMail.style.display = un ? "inline-block" : "none";
+  }
+  if (bProc) {
+    const rc = sigs.filter(s => s.st === "raw").length;
+    bProc.textContent = rc ? rc : "";
+    bProc.style.display = rc ? "inline-block" : "none";
+  }
+  if (bSrv) {
+    bSrv.textContent = srv ? "!" : "";
+    bSrv.style.display = srv ? "inline-block" : "none";
+  }
+}
+
+function updTop() {
+  const st = $("#st");
+  if (!G || V === "intro") {
+    st.innerHTML = `<button class="alt" id="openDashTop" style="padding:2px 8px;font-size:11px">📊 Abrir Dashboard</button>`;
+    const od = $("#openDashTop");
+    if (od) od.onclick = () => window.open("dashboard.html", "_blank");
+    const t = $("#toast");
+    t.textContent = flash;
+    t.className = flash ? (flashOk ? "ok" : "bad") : "";
+    t.style.visibility = flash ? "visible" : "hidden";
+    return;
+  }
+  const o = activeAssign();
+  const isNight = shift === 2;
+  const lowTime = shiftLeft <= 120;
+  st.innerHTML = `
+    <span class="pill">OP: ${S.playerName}</span>
+    <span class="pill ${isNight ? "night" : ""}">${SHIFT_NAMES[shift]}</span>
+    <span class="pill ${lowTime ? "lowtime" : ""}">T-${fmtClock(shiftLeft)}</span>
+    <span class="pill">PWR ${Math.round(en)}/${cap}</span>
+    <span class="pill">CR $${G.money}</span>
+    <span class="pill">OBJ: ${o ? CLASSES[o.cat] : "COMPLETADO"}</span>
+    <button class="alt" id="openDashTop" style="padding:2px 7px;font-size:11px" title="Abrir dashboard en vivo">📊 Live</button>
+    <button class="alt" id="muteBtn" style="padding:2px 7px;font-size:11px">${muted ? "AUDIO: OFF" : "AUDIO: ON"}</button>
+  `;
+  const od = $("#openDashTop");
+  if (od) od.onclick = () => window.open("dashboard.html", "_blank");
+  const mb = $("#muteBtn");
+  if (mb) mb.onclick = () => { muted = !muted; if (muted) stopVoice(); updTop(); };
+
+  const t = $("#toast");
+  t.textContent = flash;
+  t.className = flash ? (flashOk ? "ok" : "bad") : "";
+  t.style.visibility = flash ? "visible" : "hidden";
+  updBadges();
+}
+
+function makeRandomSequence(n) {
+  const arr = Array.from({length: n}, (_, i) => i);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function triggerCrash() {
+  crashes++;
+  if (R) R.crash++;
+  srv = {
+    seq: makeRandomSequence(4),
+    step: 0,
+    latched: [false, false, false, false],
+    t: performance.now()
+  };
+  beep(140, 0.32, "sawtooth", 0.08);
+  addMail(
+    "FALLO DE SERVIDOR // ENLACE INTERRUMPIDO",
+    "Los reles de recepcion han caido. Restablece la secuencia en la pestana Servidor.",
+    {kind: "sv"}
+  );
+  msg("[ALERTA] Servidor fuera de linea", 0);
+  syncLiveTelemetry(false);
+  if (V === "srv" || V === "mail") render();
+  else updBadges();
+}
+
+function evaluateTransmission(ev) {
+  const {sig, chosenCat, assignRef} = ev;
+
+  if (sig.anom) {
+    if (R) R.anomSent++;
+    addMail(
+      "CENTRAL AEGIS // CONFIDENCIAL: TRANSMISION ANOMALA",
+      "Recibimos el paquete de tu ultima transmision. Esa frecuencia y la subportadora adjunta no corresponden a ningun cuerpo planetario catalogado en Erial-7.\n\nNo vuelvas a retransmitir esa senal por canales abiertos. Manten el protocolo."
+    );
+    if (assignRef && !assignRef.done && !assignRef.failed) {
+      assignRef.done = true;
+      ensureSectorDiversity();
+    }
+    syncLiveTelemetry(false);
+    if (V === "mail") render();
+    else updBadges();
+    return;
+  }
+
+  if (chosenCat !== sig.cat) {
+    if (R) R.silentErrors++;
+    addMail(
+      `RE: TRANSMISION #${sig.id} [DATO ERRONEO]`,
+      `La verificacion espectral en Central no coincide con tu reporte (${CLASSES[chosenCat]}).\n\nRegistro real detectado por la red: ${CLASSES[sig.cat]}. Abono acreditado: $0 CR.`
+    );
+    ensureSectorDiversity();
+    syncLiveTelemetry(false);
+    if (V === "mail") render();
+    else updBadges();
+    return;
+  }
+
+  atlas[sig.cat]++;
+  if (assignRef && !assignRef.done && !assignRef.failed && assignRef.cat === sig.cat) {
+    G.money += 150;
+    assignRef.done = true;
+    addMail(
+      `RE: ASIGNACION ${SHIFT_NAMES[shift]} [VALIDADO]`,
+      `Clasificacion confirmada: ${CLASSES[sig.cat]}.\n\nDatos integrados al archivo central. Abono acreditado: +$150 CR.\n\nPuedes continuar operando hasta el cierre de turno o finalizar la guardia desde Correo.`
+    );
+    ensureSectorDiversity();
+  } else {
+    G.money += 55;
+    addMail(
+      `RE: TRANSMISION #${sig.id} [REGISTRO SECUNDARIO]`,
+      `Clasificacion confirmada (${CLASSES[sig.cat]}). Abono por registro adicional: +$55 CR.`
+    );
+    ensureSectorDiversity();
+  }
+  syncLiveTelemetry(false);
+  updTop();
+  if (V === "mail" || V === "shop") render();
+}
+
+function advanceShiftByTimeOrRest(timedOut) {
+  const curAssign = activeAssign();
+  let completed = true;
+
+  if (timedOut && curAssign) {
+    completed = false;
+    curAssign.failed = true;
+    addMail(
+      `ASIGNACION ${SHIFT_NAMES[shift]} [FALLIDA // TIEMPO AGOTADO]`,
+      `La ventana de 10:00 minutos ha concluido sin recibir el registro validado de ${CLASSES[curAssign.cat]}.\n\nLa orden queda cerrada como fallida. Se ha emitido una nueva asignacion para el siguiente turno.`
+    );
+  }
+
+  if (R) {
+    R.ok = completed ? 1 : 0;
+    R.status = completed ? "COMPLETADA" : "FALLIDA_TIEMPO";
+    R.time = +((performance.now() - R.t0) / 1000).toFixed(1);
+    R.energy = Math.round(en);
+    R.money = G.money;
+    S.shifts.push({...R});
+  }
+
+  if (shift < 2) {
+    shift++;
+    initShift();
+    msg(timedOut ? `[CAMBIO DE TURNO] ${SHIFT_NAMES[shift]} // Nueva asignacion` : `[NUEVO TURNO] ${SHIFT_NAMES[shift]}`, timedOut ? 0 : 1);
+    updTop();
+    render();
+  } else {
+    V = "survey";
+    syncLiveTelemetry(false);
+    updTop();
+    render();
+  }
+}
+
+function tick(dt) {
+  if (!G || V === "intro" || V === "survey" || V === "end") return;
+
+  shiftLeft -= dt;
+  if (shiftLeft <= 0) {
+    shiftLeft = 0;
+    advanceShiftByTimeOrRest(true);
+    return;
+  }
+
+  en = Math.min(cap, en + dt * (en < 20 ? 0.75 : 0.35));
+  if (rd > 0) rd = Math.max(0, rd - dt);
+
+  const alignDur = Math.max(1.4, 4.2 - G.a * 0.9);
+  const dlDur = Math.max(4.5, 11.5 - G.a * 2.1);
+  const noiseProb = Math.max(0.03, 0.25 - G.f * 0.06);
+  let activeDl = false;
+
+  sigs.forEach(s => {
+    if ((s.st === "echo" || s.st === "align" || s.st === "dl") && (s.vx || s.vy)) {
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      if (s.x < 90 || s.x > W - 90) { s.vx *= -1; s.x = Math.max(90, Math.min(W - 90, s.x)); }
+      if (s.y < 90 || s.y > H - 90) { s.vy *= -1; s.y = Math.max(90, Math.min(H - 90, s.y)); }
+    }
+
+    if (srv) return;
+
+    if (s.st === "align") {
+      if (R) R.slewTime += dt;
+      s.align += dt / alignDur;
+      if (s.align >= 1) {
+        s.align = 1;
+        s.st = "dl";
+        beep(520, 0.08, "triangle", 0.05);
+        msg("[OK] Antenas alineadas // Descargando trama", 1);
+      }
+    } else if (s.st === "dl") {
+      activeDl = true;
+      s.prog += dt / dlDur;
+      s.acc += dt;
+      while (s.acc >= 0.5) {
+        s.acc -= 0.5;
+        s.tot++;
+        if (Math.random() < noiseProb) {
+          s.bad++;
+          if (R) R.corrupt++;
+        }
+      }
+      if (s.prog >= 1) {
+        s.prog = 1;
+        s.st = "raw";
+        beep(680, 0.12, "sine", 0.07);
+        msg(`[OK] Trama #${s.id} disponible en Procesador`, 1);
+        ensureSectorDiversity();
+        syncLiveTelemetry(false);
+        if (V === "map" || V === "mail") render();
+        else updBadges();
+      }
+    }
+  });
+
+  if (activeDl && !srv && Math.random() < dt / 44) triggerCrash();
+
+  if (activeVoice) {
+    activeVoice.t += dt;
+    const s = activeVoice.sig;
+    const clarity = s.fixed ? 1 : Math.max(0.15, 1 - (offF(s) + offP(s)) * 0.6);
+    const pulse = s.cat === 4 ? ((activeVoice.t * 7 % 1) < 0.22 ? 1 : 0.05)
+                : s.cat === 3 ? ((activeVoice.t * 2.5 % 1) < 0.45 ? 0.9 : 0.1)
+                : (0.65 + 0.35 * Math.sin(activeVoice.t * 3));
+    activeVoice.g.gain.value = 0.07 * clarity * pulse;
+    if (activeVoice.t >= activeVoice.max) stopVoice();
+  }
+
+  for (let i = pendingEvals.length - 1; i >= 0; i--) {
+    if (performance.now() >= pendingEvals[i].at) {
+      const ev = pendingEvals.splice(i, 1)[0];
+      evaluateTransmission(ev);
+    }
+  }
+
+  if (flashT > 0) {
+    flashT -= dt;
+    if (flashT <= 0) { flash = ""; updTop(); }
+  }
+
+  uiTick += dt;
+  if (uiTick >= 0.45) { uiTick = 0; updTop(); }
+
+  liveSyncTimer += dt;
+  if (liveSyncTimer >= 1.5) {
+    liveSyncTimer = 0;
+    syncLiveTelemetry(false);
+  }
+}
+
+function drawMap(t) {
+  const cv = $("#cv");
+  if (!cv) return;
+  const cx = cv.getContext("2d");
+  cx.fillStyle = "#03070d";
+  cx.fillRect(0, 0, 640, 300);
+
+  cx.strokeStyle = "rgba(52, 95, 68, 0.2)";
+  cx.lineWidth = 1;
+  const gx0 = -(cam.x % 80), gy0 = -(cam.y % 80);
+  for (let x = gx0; x < 640; x += 80) { cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, 300); cx.stroke(); }
+  for (let y = gy0; y < 300; y += 80) { cx.beginPath(); cx.moveTo(0, y); cx.lineTo(640, y); cx.stroke(); }
+
+  cx.fillStyle = "#d1fae5";
+  stars.forEach(([x, y, r]) => {
+    const sx = x - cam.x, sy = y - cam.y;
+    if (sx < 0 || sx > 640 || sy < 0 || sy > 300) return;
+    cx.globalAlpha = 0.3 + 0.35 * Math.sin(t * 1.4 + x);
+    cx.fillRect(sx, sy, r, r);
+  });
+  cx.globalAlpha = 1;
+
+  cx.save();
+  cx.translate(-cam.x, -cam.y);
+  sigs.forEach(s => {
+    if (s.st === "gone" || s.st === "raw") return;
+    const col = s.st === "echo" ? "96, 195, 255" : s.st === "align" ? "234, 179, 8" : "74, 222, 128";
+    const pulse = (t * 0.45 + s.seed) % 1;
+    cx.strokeStyle = `rgba(${col}, ${(1 - pulse) * 0.65})`;
+    cx.beginPath(); cx.arc(s.x, s.y, 7 + pulse * 26, 0, Math.PI * 2); cx.stroke();
+
+    cx.fillStyle = `rgb(${col})`;
+    cx.beginPath(); cx.arc(s.x, s.y, 4.5, 0, Math.PI * 2); cx.fill();
+
+    if (s.st === "align") {
+      cx.strokeStyle = "#eab308";
+      cx.lineWidth = 2.5;
+      cx.beginPath(); cx.arc(s.x, s.y, 16, -Math.PI/2, -Math.PI/2 + Math.PI*2*s.align); cx.stroke();
+      cx.lineWidth = 1;
+    } else if (s.st === "dl") {
+      cx.strokeStyle = srv ? "#ef4444" : "#4ade80";
+      cx.lineWidth = 2.5;
+      cx.beginPath(); cx.arc(s.x, s.y, 16, -Math.PI/2, -Math.PI/2 + Math.PI*2*s.prog); cx.stroke();
+      cx.lineWidth = 1;
+    }
+  });
+  cx.restore();
+
+  if (rd > 0) {
+    cx.globalAlpha = Math.min(1, rd / 2);
+    sigs.forEach(s => {
+      if (s.st !== "echo") return;
+      const sx = s.x - cam.x, sy = s.y - cam.y;
+      if (sx > 10 && sx < 630 && sy > 10 && sy < 290) return;
+      const a = Math.atan2(sy - 150, sx - 320);
+      const k = Math.min(295 / Math.abs(Math.cos(a) || 1e-5), 132 / Math.abs(Math.sin(a) || 1e-5));
+      cx.save();
+      cx.translate(320 + Math.cos(a)*k, 150 + Math.sin(a)*k);
+      cx.rotate(a);
+      cx.fillStyle = "#4ade80";
+      cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(-14, -6); cx.lineTo(-14, 6); cx.fill();
+      cx.restore();
+    });
+    cx.globalAlpha = 1;
+  }
+
+  const aligning = sigs.find(s => s.st === "align");
+  const targetAng = aligning ? Math.atan2(aligning.y - H/2, aligning.x - W/2) : -Math.PI/2;
+  cx.fillStyle = "rgba(8, 14, 11, 0.78)";
+  cx.fillRect(8, 258, 112, 34);
+  cx.strokeStyle = "#243d2b";
+  cx.strokeRect(8, 258, 112, 34);
+  for (let i = 0; i < 3; i++) {
+    const ax = 26 + i * 36, ay = 275;
+    cx.strokeStyle = "#4ade80";
+    cx.beginPath(); cx.arc(ax, ay, 8, 0, Math.PI * 2); cx.stroke();
+    const curA = aligning ? (targetAng - (1 - aligning.align) * 2.2) : targetAng;
+    cx.beginPath(); cx.moveTo(ax, ay); cx.lineTo(ax + Math.cos(curA)*10, ay + Math.sin(curA)*10); cx.stroke();
+  }
+}
+
+function drawCRT(t) {
+  const cv = $("#crt");
+  if (!cv || !cur) return;
+  const cx = cv.getContext("2d");
+  const w = cv.width, h = cv.height;
+  const img = cx.createImageData(w, h);
+  const d = img.data;
+
+  const tuneErr = cur.fixed ? 0 : Math.min(1, (offF(cur) + offP(cur)) * 0.75);
+  const baseFloor = [0.58, 0.34, 0.16, 0.04][G.f];
+  const staticAmt = Math.min(0.98, baseFloor + tuneErr * (1 - baseFloor));
+
+  const cx0 = w / 2, cy0 = h / 2;
+  const cat = cur.cat;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x - cx0, dy = y - cy0;
+      const dist = Math.hypot(dx, dy);
+      let lum = 12;
+
+      if (cat === 0 || cat === 4) {
+        if (dist < 22) lum = 235 - dist * 2;
+        else if (dist < 46) lum = Math.max(15, 165 - (dist - 22) * 5.8 + Math.sin(Math.atan2(dy, dx)*8 + t*2)*14);
+        if (Math.abs(dx) < 2 && dist < 56) lum = Math.max(lum, 180 - dist * 2.5);
+        if (Math.abs(dy) < 2 && dist < 56) lum = Math.max(lum, 180 - dist * 2.5);
+      } else if (cat === 1) {
+        const rx = dx * 0.86 + dy * 0.5;
+        const ry = -dx * 0.5 + dy * 0.86;
+        const ring = Math.abs(Math.hypot(rx * 0.38, ry * 1.4) - 27) < 3.6;
+        if (dist < 24) {
+          lum = 155 + Math.sin(ry * 0.55) * 42 - (dx * 0.9);
+          if (cur.anom && dist < 8) lum = 25;
+        } else if (ring) {
+          lum = 215;
+        }
+      } else if (cat === 2) {
+        const ang = Math.atan2(dy, dx);
+        const rad = 25 + Math.sin(ang * 3 + cur.seed) * 6 + Math.cos(ang * 5) * 4;
+        if (dist < rad) {
+          lum = 140 + Math.sin(dx * 0.35) * Math.cos(dy * 0.35) * 55;
+        }
+      } else if (cat === 3) {
+        const core = Math.abs(dx) < 8 && Math.abs(dy) < 10;
+        const panelL = dx >= -46 && dx <= -12 && Math.abs(dy) < 7;
+        const panelR = dx >= 12 && dx <= 46 && Math.abs(dy) < 7;
+        const strut = Math.abs(dy) < 2 && Math.abs(dx) < 46;
+        if (core) lum = 225;
+        else if (panelL || panelR) lum = ((x % 6 === 0 || y % 5 === 0) ? 90 : 185);
+        else if (strut) lum = 170;
+      }
+
+      const snow = Math.random() * 255;
+      const scanline = (y % 2 === 0) ? 0.88 : 1.0;
+      const finalVal = Math.max(0, Math.min(255, (lum * (1 - staticAmt) + snow * staticAmt) * scanline));
+
+      const idx = (y * w + x) * 4;
+      d[idx] = finalVal;
+      d[idx + 1] = finalVal;
+      d[idx + 2] = finalVal;
+      d[idx + 3] = 255;
+    }
+  }
+  cx.putImageData(img, 0, 0);
+}
+
+function drawSpectrogram(t) {
+  const cv = $("#spec");
+  if (!cv || !cur) return;
+  const cx = cv.getContext("2d");
+  const w = cv.width, h = cv.height;
+  cx.fillStyle = "#030805";
+  cx.fillRect(0, 0, w, h);
+
+  cx.strokeStyle = "rgba(52, 95, 68, 0.25)";
+  for (let x = 0; x < w; x += 40) { cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, h); cx.stroke(); }
+  for (let y = 0; y < h; y += 30) { cx.beginPath(); cx.moveTo(0, y); cx.lineTo(w, y); cx.stroke(); }
+
+  const cat = cur.cat;
+  for (let x = 0; x < w; x += 3) {
+    const phase = x * 0.04 + t * 2.2;
+    if (cur.anom) {
+      for (let b = 0; b < 4; b++) {
+        const bend = Math.exp(-Math.pow((x - w/2)/70, 2)) * 34;
+        const y = 32 + b * 28 + bend + Math.sin(phase + b) * 3;
+        cx.fillStyle = "rgba(248, 113, 113, 0.85)";
+        cx.fillRect(x, y, 2, 5);
+      }
+    } else if (cat === 0) {
+      for (let b = 0; b < 3; b++) {
+        const y = 38 + b * 42 + Math.sin(phase * 0.7 + b) * 4;
+        cx.fillStyle = "rgba(74, 222, 128, 0.55)";
+        cx.fillRect(x, y - 6, 3, 12);
+      }
+    } else if (cat === 1) {
+      for (let b = 0; b < 4; b++) {
+        const y = 32 + b * 28 + Math.sin(phase + b) * 2;
+        cx.fillStyle = "rgba(74, 222, 128, 0.82)";
+        cx.fillRect(x, y, 3, 4);
+      }
+    } else if (cat === 4) {
+      if (((x + Math.floor(t * 45)) % 36) < 4) {
+        cx.fillStyle = "rgba(74, 222, 128, 0.9)";
+        cx.fillRect(x, 18, 3, h - 36);
+      }
+    } else if (cat === 3) {
+      const slot = Math.floor((x + t * 35) / 18);
+      if ((slot * 7 + Math.floor(cur.seed)) % 3 === 0) {
+        const top = 26 + (slot % 3) * 32;
+        cx.fillStyle = "rgba(74, 222, 128, 0.85)";
+        cx.fillRect(x, top, 3, 28);
+      }
+    } else if (cat === 2) {
+      const y = ((x * 0.6 + t * 40) % (h - 30)) + 15;
+      cx.fillStyle = "rgba(134, 239, 172, 0.65)";
+      cx.fillRect(x, y, 2, 9);
+    }
+  }
+}
+
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000);
+  last = now;
+  tick(dt);
+  const t = now / 1000;
+  if (V === "map") drawMap(t);
+  if (V === "proc") drawCRT(t);
+  if (V === "spec") drawSpectrogram(t);
+  requestAnimationFrame(loop);
+}
+
+function render() {
+  const w = $("#win"), tb = $("#tabs");
+  if (V === "intro" || V === "survey" || V === "end") {
+    tb.innerHTML = "";
+  } else {
+    const un = mail.filter(m => !m.read).length;
+    const rawCount = sigs.filter(s => s.st === "raw").length;
+    const tabList = [
+      ["mail", `✉ Correo<span class="bd" id="bd-mail" style="display:${un ? "inline-block" : "none"}">${un || ""}</span>`],
+      ["map", "📡 Mapa Estelar"],
+      ["proc", `🎛 Procesador<span class="bd" id="bd-proc" style="display:${rawCount ? "inline-block" : "none"}">${rawCount || ""}</span>`]
+    ];
+    if (G.spec) tabList.push(["spec", "📊 Espectrograma"]);
+    tabList.push(["srv", `🖧 Servidor<span class="bd" id="bd-srv" style="display:${srv ? "inline-block" : "none"}">!</span>`]);
+    tabList.push(["shop", "🛠 Taller"]);
+
+    tb.innerHTML = tabList.map(([k, label]) =>
+      `<button class="tab ${V === k ? "on" : ""}" data-t="${k}">${label}</button>`
+    ).join("");
+    tb.querySelectorAll("[data-t]").forEach(b => b.onclick = () => {
+      beep(420, 0.05);
+      V = b.dataset.t;
+      if (V === "spec" && R) R.specUses++;
+      syncLiveTelemetry(false);
+      render();
+    });
+  }
+
+  let h = "";
+  if (V === "intro") {
+    h = `
+      <div class="card" style="padding:24px;text-align:center;margin-top:22px">
+        <div class="mut" style="font-size:12px;letter-spacing:2px">RED DE RADIOASTRONOMIA // SECTOR ERIAL-7</div>
+        <h1 style="margin:10px 0 6px;font-size:24px;color:var(--accent)">FRECUENCIA DE FONDO</h1>
+        <p class="mut" style="max-width:460px;margin:0 auto 18px">
+          Terminal de escucha profunda, alineacion de antenas y analisis espectral de cuerpos orbitales.
+        </p>
+        <div style="max-width:340px;margin:0 auto 16px;text-align:left">
+          <label for="playerName" style="display:block;font-size:12px;color:var(--accent);margin-bottom:6px">
+            INGRESA TU NOMBRE DE OPERADOR:
+          </label>
+          <input type="text" id="playerName" placeholder="Ej. Alex Rivera" maxlength="32" value="${playerNameInput}" autocomplete="off">
+        </div>
+        <div class="row" style="justify-content:center">
+          <button id="go">Encender sistema</button>
+          <button class="alt" id="dashIntroBtn">Abrir Dashboard en vivo</button>
+        </div>
+      </div>`;
+  } else if (V === "mail") {
+    const sm = mail.find(m => m.id === selMail) || mail[0];
+    if (sm && !sm.read) { sm.read = 1; selMail = sm.id; }
+    const canEndShift = !activeAssign();
+    h = `
+      <div class="mail-layout">
+        <div class="mail-list">
+          ${mail.map(m => `<div class="mi ${m.read ? "" : "un"} ${sm && sm.id === m.id ? "sel" : ""}" data-m="${m.id}">
+            <div>${m.read ? "[LEIDO]" : "[NUEVO]"} ${m.subj}</div>
+          </div>`).join("")}
+        </div>
+        <div class="card" style="margin:0">
+          ${sm ? `
+            <div style="border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:8px">
+              <b>${sm.subj}</b>
+            </div>
+            <div class="mail-body">${sm.body}</div>
+          ` : `<span class="mut">Selecciona un mensaje</span>`}
+        </div>
+      </div>
+      <div class="card between">
+        <div>
+          <div style="font-size:12px" class="mut">TELEMETRIA DE SATELITE EN MEMORIA:</div>
+          <div style="font-size:12px">${savedSatLog ? savedSatLog : "[Ninguna captura guardada]"}</div>
+        </div>
+        <button id="sendSatMail" ${savedSatLog ? "" : "disabled"}>Enviar reporte de satelite</button>
+      </div>
+      <div class="card between">
+        <div>
+          <div style="font-size:12px" class="mut">CONTROL DE GUARDIA (${SHIFT_NAMES[shift]}):</div>
+          <div style="font-size:12px">${canEndShift ? "Asignacion del turno entregada. Puedes finalizar la guardia o agotar el reloj." : "Asignacion en curso. El turno cerrara automaticamente al agotarse los 10:00 minutos."}</div>
+        </div>
+        <button class="alt" id="restBtn" ${canEndShift ? "" : "disabled"}>Finalizar guardia</button>
+      </div>
+      <div class="card">
+        <div class="mut" style="font-size:12px;margin-bottom:4px">BITACORA DE CAMPO DEL OPERADOR:</div>
+        <textarea id="notesBox" style="min-height:58px" placeholder="Anota firmas espectrales, deriva orbital o frecuencias...">${notes}</textarea>
+      </div>`;
+  } else if (V === "map") {
+    h = `
+      <canvas id="cv" width="640" height="300"></canvas>
+      <div class="between" style="margin-top:8px">
+        <span class="mut" style="font-size:12px">Sector activo (-8 PWR por fijacion de antena).</span>
+        <button class="alt" id="rd">Pulso Radar (-6 PWR)</button>
+      </div>`;
+  } else if (V === "proc") {
+    const ready = sigs.filter(s => s.st === "raw");
+    if (cur && !ready.includes(cur)) cur = null;
+    if (!cur && ready[0]) { cur = ready[0]; knobF = 50; knobP = 50; choice = null; }
+
+    h = `<div class="row">
+      <span class="mut" style="font-size:12px">BUFFER:</span>
+      ${ready.length ? ready.map(s => `<button class="${s === cur ? "" : "alt"}" data-s="${s.id}">TRAMA #${s.id}</button>`).join("") : `<span class="mut">Sin tramas descargadas</span>`}
+    </div>`;
+
+    if (cur) {
+      const tuned = isTuned(cur);
+      h += `
+        <div class="crt-wrap">
+          <canvas id="crt" width="160" height="96"></canvas>
+          <div class="between" style="width:100%;max-width:420px;margin-top:6px;font-size:11px">
+            <span class="mut">CRT MONOCROMO // FILTRO NV.${G.f}</span>
+            <span class="mut">${cur.fixed ? "[CAPTURA FIJADA]" : "SENAL SIN FIJAR"}</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="row">
+            <span style="width:95px;font-size:12px">FRECUENCIA</span>
+            <input type="range" id="knF" min="0" max="100" value="${knobF}">
+            <span id="valF" style="width:32px;text-align:right">${knobF}</span>
+          </div>
+          <div class="row">
+            <span style="width:95px;font-size:12px">POLARIDAD</span>
+            <input type="range" id="knP" min="0" max="100" value="${knobP}">
+            <span id="valP" style="width:32px;text-align:right">${knobP}</span>
+          </div>
+          <div class="row">
+            <button class="alt" id="playAu">${activeVoice ? "Detener audio" : "Escuchar audio (-2 PWR)"}</button>
+            <button id="fixBtn" ${tuned && !cur.fixed ? "" : "disabled"}>Fijar captura</button>
+            <button class="bad" id="dropBtn">Descartar</button>
+          </div>
+        </div>`;
+
+      if (cur.fixed) {
+        h += `<div class="card">
+          <div class="mut" style="font-size:12px;margin-bottom:6px">CLASIFICACION Y ENVIO:</div>
+          <div class="grid">
+            ${CLASSES.map((c, i) => `<button class="${choice === i ? "" : "alt"}" data-k="${i}">${c}</button>`).join("")}
+          </div>
+          <div class="row" style="justify-content:flex-end;margin-top:10px">
+            <button id="txBtn" ${choice === null ? "disabled" : ""}>Transmitir a Central</button>
+          </div>
+        </div>`;
+      }
+    }
+  } else if (V === "spec") {
+    const ready = sigs.filter(s => s.st === "raw");
+    if (cur && !ready.includes(cur)) cur = null;
+    if (!cur && ready[0]) { cur = ready[0]; knobF = 50; knobP = 50; choice = null; }
+
+    h = `<div class="row">
+      <span class="mut" style="font-size:12px">ANALISIS ESPECTRAL:</span>
+      ${ready.length ? ready.map(s => `<button class="${s === cur ? "" : "alt"}" data-s="${s.id}">TRAMA #${s.id}</button>`).join("") : `<span class="mut">Sin tramas en buffer</span>`}
+    </div>`;
+
+    if (cur) {
+      h += `
+        <canvas id="spec" width="640" height="190"></canvas>
+        <div class="card">
+          <div class="between">
+            <b>SUBPORTADORA // TRAMA #${cur.id}</b>
+            ${cur.cat === 3 && !cur.anom ? `<button id="saveSatBtn">Guardar datos de satelite</button>` : ""}
+          </div>
+          <div class="databox ${cur.anom ? "anom" : ""}">${cur.textData}</div>
+        </div>`;
+    }
+  } else if (V === "srv") {
+    h = srv ? `
+      <div class="card">
+        <b>ENLACE DE RELES INTERRUMPIDO</b>
+        <p class="mut">Restablece el circuito de telemetria.</p>
+        <div class="grid">
+          ${[0, 1, 2, 3].map(i => {
+            const on = srv.latched[i];
+            return `<button class="${on ? "" : "alt"}" data-b="${i}">RELE 0${i + 1}</button>`;
+          }).join("")}
+        </div>
+      </div>` : `<div class="card"><b>SERVIDOR EN LINEA</b><p class="mut">Sin incidencias.</p></div>`;
+  } else if (V === "shop") {
+    const upgrades = [
+      ["a", "Servomotores de Antena", "Acelera el giro de antenas y la descarga.", 3, 110 + 75 * G.a],
+      ["f", "Filtro CRT Optico", "Reduce la estatica en el monitor monocromo.", 3, 100 + 70 * G.f],
+      ["b", "Banco de Baterias", "Aumenta la capacidad maxima de PWR.", 3, 95 + 65 * G.b],
+      ["spec", "Modulo Espectrograma", "Habilita la pestana Espectrograma y subportadoras.", 1, 70]
+    ];
+    h = upgrades.map(([k, name, desc, maxLv, cost]) => {
+      const lv = G[k];
+      return `<div class="card between">
+        <div>
+          <b>${name}</b> <span class="mut">[NV ${lv}/${maxLv}]</span>
+          <div class="mut" style="font-size:12px">${desc}</div>
+        </div>
+        <button data-u="${k}" ${lv >= maxLv || G.money < cost ? "disabled" : ""}>${lv >= maxLv ? "MAXIMO" : `$${cost} CR`}</button>
+      </div>`;
+    }).join("") + `
+    <div class="card">
+      <b>ARCHIVO VERIFICADO</b>
+      <div class="row" style="margin-top:6px">
+        ${CLASSES.map((c, i) => `<span class="pill">${c}: ${atlas[i]}</span>`).join("")}
+      </div>
+    </div>`;
+  } else if (V === "survey") {
+    const qs = [
+      ["clar", "La jugabilidad y el flujo entre pestanas me resultaron claros"],
+      ["dif", "El nivel de dificultad y deduccion fue adecuado"],
+      ["fun", "La atmosfera de misterio y escuchas me mantuvo interesado"]
+    ];
+    h = `<h3>EVALUACION DE SESION (1 A 5)</h3>` + qs.map(([k, txt]) => `
+      <div class="card">
+        <div class="between"><span>${txt}</span><b id="v_${k}">3</b></div>
+        <input type="range" id="q_${k}" min="1" max="5" value="3" style="width:100%;margin-top:6px">
+      </div>`).join("") + `<button id="finSurvey">Finalizar y sincronizar registro</button>`;
+  } else if (V === "end") {
+    const snap = buildSessionSnapshot(true);
+    const jsonStr = JSON.stringify(snap, null, 2);
+    h = `
+      <h3>REGISTRO DE VALIDACION COMPLETO // OP. ${S.playerName.toUpperCase()}</h3>
+      <p class="mut">Los datos ya fueron sincronizados en tiempo real con el Dashboard. Tambien puedes copiar o descargar el respaldo JSON.</p>
+      <textarea id="outJson" readonly>${jsonStr}</textarea>
+      <div class="row">
+        <button id="openDashEndBtn">📊 Ver en Dashboard</button>
+        <button class="alt" id="cpBtn">Copiar JSON</button>
+        <button class="alt" id="dlBtn">Descargar .json</button>
+        <button class="alt" id="rsBtn">Nueva sesion</button>
+      </div>`;
+  }
+
+  w.innerHTML = h;
+  bindEvents(w);
+}
+
+function bindEvents(w) {
+  const on = (sel, fn) => { const el = w.querySelector(sel); if (el) el.onclick = fn; };
+
+  const pn = w.querySelector("#playerName");
+  if (pn) {
+    pn.oninput = e => { playerNameInput = e.target.value; };
+    pn.onkeydown = e => { if (e.key === "Enter") { beep(520, 0.1); start(pn.value); } };
+    setTimeout(() => pn.focus(), 30);
+  }
+
+  on("#go", () => {
+    const val = w.querySelector("#playerName")?.value || playerNameInput;
+    beep(520, 0.1);
+    start(val);
+  });
+
+  on("#dashIntroBtn", () => window.open("dashboard.html", "_blank"));
+  on("#openDashEndBtn", () => window.open("dashboard.html", "_blank"));
+
+  w.querySelectorAll("[data-m]").forEach(el => el.onclick = () => {
+    markFirst();
+    const m = mail.find(x => x.id === el.dataset.m);
+    if (m) { m.read = 1; selMail = m.id; beep(380, 0.04); render(); }
+  });
+
+  const nb = w.querySelector("#notesBox");
+  if (nb) nb.oninput = e => { notes = e.target.value; syncLiveTelemetry(false); };
+
+  on("#sendSatMail", () => {
+    if (!savedSatLog) return;
+    markFirst();
+    const log = savedSatLog;
+    savedSatLog = null;
+    satReportsSent++;
+    if (R) R.satReports++;
+    G.money += 85;
+    beep(640, 0.1);
+    addMail(
+      "RE: REPORTE DE TELEMETRIA SATELITAL [RECIBIDO]",
+      `Registro orbital archivado:\n${log}\n\nBonificacion acreditada: +$85 CR.`
+    );
+    msg("[OK] Reporte satelital enviado (+$85 CR)", 1);
+    syncLiveTelemetry(false);
+    updTop();
+    render();
+  });
+
+  on("#restBtn", () => {
+    if (activeAssign()) return;
+    beep(480, 0.1);
+    advanceShiftByTimeOrRest(false);
+  });
+
+  const cv = $("#cv");
+  if (cv) {
+    cv.onpointerdown = e => {
+      moved = 0;
+      drag = {x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y};
+      try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    };
+    cv.onpointermove = e => {
+      if (!drag) return;
+      const r = cv.getBoundingClientRect();
+      const dx = (e.clientX - drag.x) * 640 / r.width;
+      const dy = (e.clientY - drag.y) * 300 / r.height;
+      if (Math.hypot(dx, dy) > 6) moved = 1;
+      if (moved) {
+        cam.x = Math.max(0, Math.min(W - 640, drag.cx - dx));
+        cam.y = Math.max(0, Math.min(H - 300, drag.cy - dy));
+      }
+    };
+    cv.onpointerup = cv.onpointercancel = () => { drag = null; };
+    cv.onclick = e => {
+      if (moved) return;
+      markFirst();
+      const r = cv.getBoundingClientRect();
+      const x = (e.clientX - r.left) * 640 / r.width + cam.x;
+      const y = (e.clientY - r.top) * 300 / r.height + cam.y;
+      const hit = sigs.find(s => (s.st === "echo" || s.st === "align" || s.st === "dl") && Math.hypot(s.x - x, s.y - y) < 32);
+      if (!hit) { if (R) R.invalid++; syncLiveTelemetry(false); return; }
+      if (hit.st === "echo") {
+        if (en < 8) { if (R) R.invalid++; beep(180, 0.15, "sawtooth"); return msg("[ERR] Energia insuficiente (8 PWR)", 0); }
+        en -= 8;
+        hit.st = "align";
+        beep(320, 0.12, "triangle");
+        syncLiveTelemetry(false);
+        updTop();
+      }
+    };
+  }
+
+  on("#rd", () => {
+    markFirst();
+    if (rd > 0) return;
+    if (en < 6) { if (R) R.invalid++; return msg("[ERR] Energia insuficiente (6 PWR)", 0); }
+    en -= 6; rd = 7;
+    beep(580, 0.12);
+    updTop();
+  });
+
+  w.querySelectorAll("[data-s]").forEach(el => el.onclick = () => {
+    cur = sigs.find(s => s.id === +el.dataset.s) || null;
+    knobF = 50;
+    knobP = 50;
+    choice = null;
+    stopVoice();
+    render();
+  });
+
+  const knF = $("#knF"), knP = $("#knP");
+  if (knF) knF.oninput = e => {
+    knobF = +e.target.value;
+    const vf = $("#valF");
+    if (vf) vf.textContent = knobF;
+    if (R) R.retunes++;
+    const fb = $("#fixBtn");
+    if (fb && cur) fb.disabled = !(isTuned(cur) && !cur.fixed);
+  };
+  if (knP) knP.oninput = e => {
+    knobP = +e.target.value;
+    const vp = $("#valP");
+    if (vp) vp.textContent = knobP;
+    if (R) R.retunes++;
+    const fb = $("#fixBtn");
+    if (fb && cur) fb.disabled = !(isTuned(cur) && !cur.fixed);
+  };
+
+  on("#playAu", () => {
+    if (!cur) return;
+    if (activeVoice) { stopVoice(); render(); return; }
+    if (en < 2) { if (R) R.invalid++; return msg("[ERR] Energia insuficiente (2 PWR)", 0); }
+    en -= 2;
+    if (R) R.repeats++;
+    playSignalAudio(cur);
+    syncLiveTelemetry(false);
+    updTop();
+    render();
+  });
+
+  on("#fixBtn", () => {
+    if (!cur || !isTuned(cur)) return;
+    cur.fixed = true;
+    beep(620, 0.08);
+    syncLiveTelemetry(false);
+    render();
+  });
+
+  on("#dropBtn", () => {
+    if (!cur) return;
+    stopVoice();
+    cur.st = "gone";
+    cur = null;
+    knobF = 50;
+    knobP = 50;
+    choice = null;
+    ensureSectorDiversity();
+    msg("Trama descartada", 1);
+    render();
+  });
+
+  w.querySelectorAll("[data-k]").forEach(el => el.onclick = () => {
+    choice = +el.dataset.k;
+    beep(440, 0.04);
+    render();
+  });
+
+  on("#txBtn", () => {
+    if (!cur || choice === null) return;
+    stopVoice();
+    const sentSig = cur;
+    const chosenCat = choice;
+    sentSig.st = "gone";
+    cur = null;
+    knobF = 50;
+    knobP = 50;
+    choice = null;
+    beep(540, 0.1);
+    msg("[OK] Paquete transmitido a Central", 1);
+    pendingEvals.push({
+      at: performance.now() + 2600,
+      sig: sentSig,
+      chosenCat,
+      assignRef: activeAssign()
+    });
+    ensureSectorDiversity();
+    syncLiveTelemetry(false);
+    render();
+  });
+
+  on("#saveSatBtn", () => {
+    if (!cur || cur.cat !== 3 || cur.anom) return;
+    savedSatLog = cur.textData;
+    beep(600, 0.08);
+    msg("[OK] Telemetria satelital guardada", 1);
+  });
+
+  w.querySelectorAll("[data-b]").forEach(el => el.onclick = () => {
+    if (!srv) return;
+    const idx = +el.dataset.b;
+    if (srv.latched[idx]) return;
+    const expected = srv.seq[srv.step];
+    if (idx === expected) {
+      srv.latched[idx] = true;
+      srv.step++;
+      en = Math.max(0, en - 1);
+      beep(440 + srv.step * 110, 0.09);
+      if (srv.step >= srv.seq.length) {
+        if (R) R.fix += +((performance.now() - srv.t) / 1000).toFixed(1);
+        srv = null;
+        msg("[OK] Servidor restablecido", 1);
+        syncLiveTelemetry(false);
+      }
+      render();
+    } else {
+      srv.step = 0;
+      srv.latched = [false, false, false, false];
+      beep(150, 0.16, "sawtooth");
+      render();
+    }
+  });
+
+  w.querySelectorAll("[data-u]").forEach(el => el.onclick = () => {
+    const k = el.dataset.u;
+    const maxMap = {a: 3, f: 3, b: 3, spec: 1};
+    if (G[k] >= maxMap[k]) return;
+    const costs = {a: 110 + 75 * G.a, f: 100 + 70 * G.f, b: 95 + 65 * G.b, spec: 70};
+    const cost = costs[k];
+    if (G.money < cost) return;
+    G.money -= cost;
+    G[k]++;
+    if (k === "b") { cap = 100 + 25 * G.b; en = Math.min(cap, en + 25); }
+    beep(660, 0.1);
+    msg("[OK] Mejora instalada", 1);
+    syncLiveTelemetry(false);
+    updTop();
+    render();
+  });
+
+  ["clar", "dif", "fun"].forEach(k => {
+    const sl = $(`#q_${k}`);
+    if (sl) sl.oninput = e => { $(`#v_${k}`).textContent = e.target.value; };
+  });
+
+  on("#finSurvey", () => {
+    S.survey = {
+      clar: +$("#q_clar").value,
+      dif: +$("#q_dif").value,
+      fun: +$("#q_fun").value
+    };
+    syncLiveTelemetry(true);
+    V = "end";
+    render();
+  });
+
+  on("#cpBtn", () => {
+    const ta = $("#outJson");
+    ta.select();
+    try { navigator.clipboard.writeText(ta.value); } catch (_) { document.execCommand("copy"); }
+    msg("[OK] JSON copiado al portapapeles", 1);
+  });
+
+  on("#dlBtn", () => {
+    const snap = buildSessionSnapshot(true);
+    const blob = new Blob([JSON.stringify(snap, null, 2)], {type: "application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `erial7_${S.playerName.replace(/\s+/g, "_")}_${S.id}.json`;
+    a.click();
+  });
+
+  on("#rsBtn", () => { V = "intro"; updTop(); render(); });
+}
+
+render();
+updTop();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard de Validación de Diseño · Estación Erial-7</title>
+<style>
+:root{
+  --bg:#060b09;--panel:#0c1511;--card:#101c16;--card-hi:#14241c;--border:#213a2b;
+  --fg:#d8f5df;--mut:#7fa38a;--accent:#4ade80;--blue:#38bdf8;--warn:#eab308;--bad:#f87171;--purple:#c084fc;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:14px/1.5 ui-monospace,"Cascadia Code","Fira Code",Consolas,monospace;
+  padding:16px 12px 40px;
+}
+main{max-width:1200px;margin:0 auto}
+header{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:16px 20px;margin-bottom:16px;
+  display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;
+}
+h1{margin:0;font-size:20px;color:var(--accent);letter-spacing:0.8px}
+.sub{color:var(--mut);font-size:12px;margin-top:3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.live-dot{
+  display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;
+  background:#0d2618;border:1px solid #22c55e;color:#86efac;font-size:11px;font-weight:700;
+}
+.live-dot::before{
+  content:"";width:7px;height:7px;border-radius:50%;background:#4ade80;
+  box-shadow:0 0 8px #4ade80;animation:pulse 1.4s infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button, .file-btn{
+  font:inherit;font-size:12px;background:#1b5433;color:#ecfdf5;
+  border:1px solid #328554;border-radius:6px;padding:8px 12px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:.15s;text-decoration:none;
+}
+button:hover, .file-btn:hover{background:#236b41}
+button.alt{background:#111e18;color:var(--fg);border:1px solid var(--border)}
+button.alt:hover{background:#192c23}
+button.bad{background:#451616;border-color:#991b1b;color:#fecaca}
+input[type=file]{display:none}
+
+.dropzone{
+  border:1px dashed #346346;background:#09110d;border-radius:8px;
+  padding:12px 16px;margin-bottom:16px;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.dropzone.drag{border-color:var(--accent);background:#102218}
+.session-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.chip{
+  background:#0f1b15;border:1px solid var(--border);color:var(--mut);
+  padding:5px 11px;border-radius:999px;font-size:12px;cursor:pointer;
+}
+.chip.on{background:#1b3828;border-color:var(--accent);color:var(--fg);font-weight:700}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:18px}
+.kpi{
+  background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:14px 16px;
+  position:relative;overflow:hidden;
+}
+.kpi::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);
+}
+.kpi.blue::before{background:var(--blue)}
+.kpi.warn::before{background:var(--warn)}
+.kpi.purple::before{background:var(--purple)}
+.kpi-title{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
+.kpi-val{font-size:26px;font-weight:700;margin:4px 0;color:var(--fg)}
+.kpi-sub{font-size:12px;color:var(--mut)}
+
+.q-grid{display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:20px}
+@media(min-width:920px){.q-grid{grid-template-columns:1fr 1fr}}
+
+.q-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;
+  display:flex;flex-direction:column;justify-content:space-between;gap:12px;
+}
+.q-head{border-bottom:1px solid var(--border);padding-bottom:10px}
+.q-tag{
+  display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;
+  background:#14281d;color:var(--accent);border:1px solid #28523a;margin-bottom:6px;
+}
+.q-title{margin:0;font-size:15px;color:#f0fdf4;line-height:1.35}
+.metrics-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.mpill{
+  font-size:11px;background:#0a120e;border:1px solid var(--border);
+  padding:3px 7px;border-radius:4px;color:#b7e4c7;
+}
+.mpill b{color:var(--accent)}
+
+canvas.chart{
+  width:100%;height:215px;background:#070d0a;border:1px solid #1b3024;border-radius:7px;display:block;
+}
+
+.insight{
+  background:#0b1410;border-left:3px solid var(--accent);border-radius:5px;
+  padding:10px 12px;font-size:12px;line-height:1.5;
+}
+.insight.warn{border-left-color:var(--warn);background:#141209}
+.insight.bad{border-left-color:var(--bad);background:#170b0b}
+.insight b{display:block;margin-bottom:3px;color:#f0fdf4}
+
+.table-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;overflow-x:auto;
+}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+th,td{padding:8px 10px;border-bottom:1px solid #1a2e22;text-align:left;white-space:nowrap}
+th{color:var(--accent);background:#09110d;font-weight:700}
+tr:hover td{background:#122019}
+.badge{padding:2px 6px;border-radius:4px;font-size:11px;font-weight:700}
+.b-ok{background:#123822;color:#86efac}
+.b-fail{background:#3f1515;color:#fca5a5}
+.b-live{background:#173247;color:#7dd3fc}
+
+.modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;padding:16px;z-index:20;
+}
+.modal.open{display:flex}
+.modal-box{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;max-width:540px;width:100%;
+}
+textarea{
+  width:100%;height:160px;background:#070d0a;color:var(--fg);border:1px solid var(--border);
+  border-radius:6px;padding:10px;font:12px inherit;margin:10px 0;
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>ERIAL-7 // DASHBOARD DE VALIDACIÓN DE DISEÑO</h1>
+      <div class="sub">
+        <span>Telemetría real de jugadores · Prototipo "Frecuencia de Fondo"</span>
+        <span class="live-dot" id="liveBadge">SINCRONIZACIÓN EN VIVO ACTIVA</span>
+      </div>
+    </div>
+    <div class="controls">
+      <label class="file-btn">
+        📂 Cargar JSON(s)
+        <input type="file" id="fileInput" accept=".json,application/json" multiple>
+      </label>
+      <button class="alt" id="pasteModalBtn">📋 Pegar JSON</button>
+      <button class="alt" id="exportCsvBtn">⬇ Exportar CSV</button>
+      <button class="bad" id="clearBtn">Limpiar registros</button>
+    </div>
+  </header>
+
+  <div class="dropzone" id="dropzone">
+    <span style="font-size:12px;color:var(--mut)">
+      Recibe datos <b style="color:var(--fg)">automáticamente en tiempo real</b> mientras juegas en otra pestaña, o arrastra aquí archivos <b style="color:var(--fg)">.json</b> exportados.
+    </span>
+    <span id="statusLabel" style="font-size:12px;color:var(--accent)"></span>
+  </div>
+
+  <div class="session-bar" id="sessionBar"></div>
+
+  <section class="kpi-grid" id="kpiGrid"></section>
+
+  <section class="q-grid">
+    <!-- PREGUNTA 1 -->
+    <article class="q-card">
+      <div class="q-head">
+        <span class="q-tag">PREGUNTA 1 · CLARIDAD Y FLUJO DE INTERFAZ</span>
+        <h2 class="q-title">¿La jugabilidad y el flujo entre pestañas son claros para el jugador?</h2>
+        <div class="metrics-pills" id="pillsQ1"></div>
+      </div>
+      <canvas class="chart" id="chartQ1" width="520" height="215"></canvas>
+      <div class="insight" id="insightQ1"></div>
+    </article>
+
+    <!-- PREGUNTA 2 -->
+    <article class="q-card">
+      <div class="q-head">
+        <span class="q-tag">PREGUNTA 2 · BALANCE DE DIFICULTAD Y DEDUCCIÓN</span>
+        <h2 class="q-title">¿El nivel de dificultad y deducción espectral es adecuado?</h2>
+        <div class="metrics-pills" id="pillsQ2"></div>
+      </div>
+      <canvas class="chart" id="chartQ2" width="520" height="215"></canvas>
+      <div class="insight" id="insightQ2"></div>
+    </article>
+
+    <!-- PREGUNTA 3 -->
+    <article class="q-card">
+      <div class="q-head">
+        <span class="q-tag">PREGUNTA 3 · RITMO TEMPORAL E INCIDENCIAS DE SERVIDOR</span>
+        <h2 class="q-title">¿La presión por tiempo (10:00 min) e interrupciones de servidor equilibran el ritmo o frustran?</h2>
+        <div class="metrics-pills" id="pillsQ3"></div>
+      </div>
+      <canvas class="chart" id="chartQ3" width="520" height="215"></canvas>
+      <div class="insight" id="insightQ3"></div>
+    </article>
+
+    <!-- PREGUNTA 4 -->
+    <article class="q-card">
+      <div class="q-head">
+        <span class="q-tag">PREGUNTA 4 · ATMÓSFERA Y EXPLORACIÓN NARRATIVA</span>
+        <h2 class="q-title">¿El prototipo cumple con la atmósfera de misterio y exploración secundaria que se busca?</h2>
+        <div class="metrics-pills" id="pillsQ4"></div>
+      </div>
+      <canvas class="chart" id="chartQ4" width="520" height="215"></canvas>
+      <div class="insight" id="insightQ4"></div>
+    </article>
+  </section>
+
+  <section class="table-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <b style="color:var(--accent)">REGISTRO DE SESIONES Y DESGLOSE POR JORNADA</b>
+      <span style="font-size:12px;color:var(--mut)" id="tableCount"></span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Jugador</th>
+          <th>Fecha Registro</th>
+          <th>Tiempo Jugado</th>
+          <th>Jornada</th>
+          <th>Estado</th>
+          <th>Duración Turno</th>
+          <th>1ª Acción</th>
+          <th>Clics Inv.</th>
+          <th>Sintonías</th>
+          <th>Err. Silenc.</th>
+          <th>Espectrog.</th>
+          <th>Caídas Srv</th>
+          <th>Fix Srv</th>
+          <th>Satélites</th>
+          <th>Anomalía</th>
+          <th>Encuesta (C/D/I)</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </section>
+</main>
+
+<div class="modal" id="pasteModal">
+  <div class="modal-box">
+    <b style="color:var(--accent)">PEGAR JSON DE SESIÓN</b>
+    <p style="font-size:12px;color:var(--mut);margin:4px 0 0">
+      Pega el contenido copiado desde la pantalla final de "Frecuencia de Fondo".
+    </p>
+    <textarea id="pasteArea" placeholder='{"id":"A1B2C3","playerName":"Operador","date":"20/11/2026 04:00:00","totalPlayTime":420.5,"shifts":[...]}'></textarea>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="alt" id="closeModalBtn">Cancelar</button>
+      <button id="confirmPasteBtn">Agregar sesión</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const SHIFTS = ["DIA 1", "DIA 2", "NOCHE 3"];
+const LIVE_STORAGE_KEY = "erial7_live_sessions_v1";
+const bc = ("BroadcastChannel" in window) ? new BroadcastChannel("erial7_telemetry") : null;
+
+let sessions = [];
+let selectedSessionId = "ALL";
+
+function avg(arr) {
+  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+}
+
+function fmtDuration(sec) {
+  const s = Math.max(0, Math.round(Number(sec) || 0));
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return `${m}m ${String(rem).padStart(2, "0")}s`;
+}
+
+function addSessionObj(obj) {
+  if (!obj || !Array.isArray(obj.shifts)) return false;
+  const id = String(obj.id || Math.random().toString(36).slice(2, 8).toUpperCase());
+  const totalSec = Number(obj.totalPlayTime ?? obj.shifts.reduce((acc, r) => acc + Number(r.time || 0), 0));
+
+  const normalized = {
+    id,
+    playerName: String(obj.playerName || `Operador #${id}`),
+    date: String(obj.date || "Sin fecha"),
+    totalPlayTime: totalSec,
+    status: String(obj.status || (obj.survey ? "FINALIZADA" : "EN_CURSO")),
+    shifts: obj.shifts.map((r, idx) => ({
+      shift: r.shift || SHIFTS[idx] || `TURNO ${idx + 1}`,
+      status: r.status || (r.ok ? "COMPLETADA" : "EN_CURSO"),
+      ok: Number(r.ok ?? 0),
+      tFirst: r.tFirst == null ? 0 : Number(r.tFirst),
+      slewTime: Number(r.slewTime ?? 0),
+      retunes: Number(r.retunes ?? 0),
+      invalid: Number(r.invalid ?? 0),
+      repeats: Number(r.repeats ?? 0),
+      corrupt: Number(r.corrupt ?? 0),
+      silentErrors: Number(r.silentErrors ?? 0),
+      satReports: Number(r.satReports ?? 0),
+      specUses: Number(r.specUses ?? 0),
+      anomSent: Number(r.anomSent ?? 0),
+      crash: Number(r.crash ?? 0),
+      fix: Number(r.fix ?? 0),
+      time: Number(r.time ?? 0),
+      energy: Number(r.energy ?? 100),
+      money: Number(r.money ?? 0)
+    })),
+    survey: obj.survey ? {
+      clar: Number(obj.survey.clar ?? 0),
+      dif: Number(obj.survey.dif ?? 0),
+      fun: Number(obj.survey.fun ?? 0)
+    } : null,
+    notesLength: Number(obj.notesLength ?? 0),
+    satReportsTotal: Number(obj.satReportsTotal ?? obj.shifts.reduce((a, b) => a + Number(b.satReports || 0), 0))
+  };
+
+  const existingIdx = sessions.findIndex(s => s.id === id);
+  if (existingIdx >= 0) sessions[existingIdx] = normalized;
+  else sessions.push(normalized);
+  return true;
+}
+
+function loadFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(LIVE_STORAGE_KEY);
+    if (!raw) return;
+    const list = JSON.parse(raw);
+    if (Array.isArray(list)) {
+      list.forEach(item => addSessionObj(item));
+    }
+  } catch (_) {}
+}
+
+function getActiveSessions() {
+  if (selectedSessionId === "ALL") return sessions;
+  return sessions.filter(s => s.id === selectedSessionId);
+}
+
+function drawGroupedBarChart(canvasId, labels, seriesList, options = {}) {
+  const cv = $(canvasId);
+  if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const padL = 44, padR = 16, padT = 32, padB = 34;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const allVals = seriesList.flatMap(s => s.values);
+  const rawMax = Math.max(options.minMax || 5, ...allVals, 1);
+  const maxVal = Math.ceil(rawMax * 1.15);
+
+  ctx.strokeStyle = "rgba(52, 95, 68, 0.28)";
+  ctx.lineWidth = 1;
+  ctx.font = "11px monospace";
+  ctx.fillStyle = "#7fa38a";
+  const steps = 4;
+  for (let i = 0; i <= steps; i++) {
+    const y = padT + plotH - (plotH * i / steps);
+    const val = (maxVal * i / steps).toFixed(options.decimals ?? 0);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.textAlign = "right";
+    ctx.fillText(val, padL - 6, y + 4);
+  }
+
+  let lx = padL;
+  seriesList.forEach(s => {
+    ctx.fillStyle = s.color;
+    ctx.fillRect(lx, 10, 10, 10);
+    ctx.fillStyle = "#d8f5df";
+    ctx.textAlign = "left";
+    ctx.fillText(s.name, lx + 14, 19);
+    lx += ctx.measureText(s.name).width + 28;
+  });
+
+  const groupW = plotW / labels.length;
+  const barGap = 6;
+  const totalBarsW = Math.min(groupW * 0.72, seriesList.length * 34);
+  const barW = (totalBarsW - barGap * (seriesList.length - 1)) / seriesList.length;
+
+  labels.forEach((lbl, gi) => {
+    const gx = padL + gi * groupW + (groupW - totalBarsW) / 2;
+    seriesList.forEach((s, si) => {
+      const val = s.values[gi] || 0;
+      const bh = (val / maxVal) * plotH;
+      const bx = gx + si * (barW + barGap);
+      const by = padT + plotH - bh;
+
+      ctx.fillStyle = s.color;
+      ctx.fillRect(bx, by, barW, bh);
+
+      ctx.fillStyle = "#ecfdf5";
+      ctx.textAlign = "center";
+      ctx.font = "10px monospace";
+      const txt = Number.isInteger(val) ? String(val) : val.toFixed(1);
+      ctx.fillText(txt, bx + barW / 2, Math.max(padT + 10, by - 4));
+    });
+
+    ctx.fillStyle = "#b7e4c7";
+    ctx.font = "11px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(lbl, padL + gi * groupW + groupW / 2, H - 10);
+  });
+}
+
+function renderDashboard() {
+  const active = getActiveSessions();
+  const statusLbl = $("#statusLabel");
+  statusLbl.textContent = sessions.length
+    ? `${sessions.length} sesión(es) real(es) registrada(s)`
+    : "Esperando inicio de partida o carga de archivo .json...";
+
+  // Barra de selección de jugadores/sesiones reales
+  const bar = $("#sessionBar");
+  if (!sessions.length) {
+    bar.innerHTML = "";
+  } else {
+    bar.innerHTML = `<span style="font-size:12px;color:var(--mut)">Sesiones:</span>` +
+      `<span class="chip ${selectedSessionId === "ALL" ? "on" : ""}" data-sid="ALL">Todas (${sessions.length})</span>` +
+      sessions.map(s => {
+        const liveTag = s.status === "EN_CURSO" ? " [EN VIVO]" : "";
+        return `<span class="chip ${selectedSessionId === s.id ? "on" : ""}" data-sid="${s.id}">${s.playerName} · ${s.date} · ${fmtDuration(s.totalPlayTime)}${liveTag}</span>`;
+      }).join("");
+    bar.querySelectorAll("[data-sid]").forEach(el => el.onclick = () => {
+      selectedSessionId = el.dataset.sid;
+      renderDashboard();
+    });
+  }
+
+  const allShifts = active.flatMap(s => s.shifts);
+  const closedShifts = allShifts.filter(r => r.status === "COMPLETADA" || r.status === "FALLIDA_TIEMPO");
+  const completedShifts = closedShifts.filter(r => r.ok === 1).length;
+  const completionRate = closedShifts.length ? (completedShifts / closedShifts.length) * 100 : 0;
+
+  const surveyed = active.filter(s => s.survey);
+  const avgClar = avg(surveyed.map(s => s.survey.clar));
+  const avgDif = avg(surveyed.map(s => s.survey.dif));
+  const avgFun = avg(surveyed.map(s => s.survey.fun));
+  const avgTFirst = avg(allShifts.map(r => r.tFirst));
+  const avgSilentErr = avg(allShifts.map(r => r.silentErrors));
+  const avgTotalPlay = avg(active.map(s => s.totalPlayTime));
+
+  const night3Shifts = active.map(s => s.shifts[2]).filter(Boolean);
+  const anomRate = night3Shifts.length ? (night3Shifts.filter(r => r.anomSent > 0).length / night3Shifts.length) * 100 : 0;
+
+  // KPIs superiores
+  $("#kpiGrid").innerHTML = `
+    <div class="kpi">
+      <div class="kpi-title">Jugadores & Tiempo Promedio</div>
+      <div class="kpi-val">${active.length ? fmtDuration(avgTotalPlay) : "0m 00s"}</div>
+      <div class="kpi-sub">${active.length} sesión(es) · ${completedShifts}/${closedShifts.length} jornadas completadas (${completionRate.toFixed(0)}%)</div>
+    </div>
+    <div class="kpi blue">
+      <div class="kpi-title">Claridad & 1ª Acción</div>
+      <div class="kpi-val">${surveyed.length ? `${avgClar.toFixed(1)} / 5.0` : "En curso"}</div>
+      <div class="kpi-sub">Tiempo promedio a 1ª interacción: ${avgTFirst.toFixed(1)}s</div>
+    </div>
+    <div class="kpi warn">
+      <div class="kpi-title">Errores Silenciosos & Dificultad</div>
+      <div class="kpi-val">${avgSilentErr.toFixed(2)} / turno</div>
+      <div class="kpi-sub">Dificultad percibida: ${surveyed.length ? `${avgDif.toFixed(1)} / 5.0` : "Pendiente encuesta"}</div>
+    </div>
+    <div class="kpi purple">
+      <div class="kpi-title">Inmersión & Anomalía Noche 3</div>
+      <div class="kpi-val">${surveyed.length ? `${avgFun.toFixed(1)} / 5.0` : `${anomRate.toFixed(0)}%`}</div>
+      <div class="kpi-sub">${anomRate.toFixed(0)}% detectó y transmitió la anomalía nocturna</div>
+    </div>
+  `;
+
+  const byShift = idx => active.map(s => s.shifts[idx]).filter(Boolean);
+  const s0 = byShift(0), s1 = byShift(1), s2 = byShift(2);
+
+  // --- PREGUNTA 1 ---
+  const tFirstArr = [avg(s0.map(r => r.tFirst)), avg(s1.map(r => r.tFirst)), avg(s2.map(r => r.tFirst))];
+  const invalidArr = [avg(s0.map(r => r.invalid)), avg(s1.map(r => r.invalid)), avg(s2.map(r => r.invalid))];
+  const specArr = [avg(s0.map(r => r.specUses)), avg(s1.map(r => r.specUses)), avg(s2.map(r => r.specUses))];
+
+  $("#pillsQ1").innerHTML = `
+    <span class="mpill">1ª Acción Día 1: <b>${tFirstArr[0].toFixed(1)}s</b></span>
+    <span class="mpill">Clics Inválidos Prom.: <b>${avg(allShifts.map(r => r.invalid)).toFixed(1)}</b></span>
+    <span class="mpill">Claridad Encuesta: <b>${surveyed.length ? `${avgClar.toFixed(1)}/5` : "N/A"}</b></span>
+  `;
+  drawGroupedBarChart("#chartQ1", SHIFTS, [
+    { name: "1ª Acción (s)", values: tFirstArr, color: "#38bdf8" },
+    { name: "Clics Inválidos", values: invalidArr, color: "#f87171" },
+    { name: "Uso Espectrograma", values: specArr, color: "#4ade80" }
+  ], { decimals: 1, minMax: 10 });
+
+  const q1El = $("#insightQ1");
+  if (!active.length) {
+    q1El.className = "insight";
+    q1El.innerHTML = "<b>Sin sesiones registradas:</b>Inicia una partida en el videojuego (ingresando tu nombre) o carga un archivo .json para visualizar datos reales.";
+  } else if (tFirstArr[0] > 20 || invalidArr[0] >= 4) {
+    q1El.className = "insight warn";
+    q1El.innerHTML = `<b>Decisión de diseño sugerida (Fricción inicial en Día 1):</b>El jugador tarda <b>${tFirstArr[0].toFixed(1)}s</b> en iniciar y comete <b>${invalidArr[0].toFixed(1)}</b> clics inválidos en el Día 1. Conviene resaltar visualmente la pestaña Mapa Estelar tras leer el primer correo.`;
+  } else {
+    q1El.className = "insight";
+    q1El.innerHTML = `<b>Interpretación en tiempo real (Flujo comprensible):</b>El tiempo de reacción inicial en Día 1 es de <b>${tFirstArr[0].toFixed(1)}s</b> con un promedio de ${avg(allShifts.map(r => r.invalid)).toFixed(1)} clics inválidos por turno, validando la claridad de navegación entre pestañas.`;
+  }
+
+  // --- PREGUNTA 2 ---
+  const retunesArr = [avg(s0.map(r => r.retunes)), avg(s1.map(r => r.retunes)), avg(s2.map(r => r.retunes))];
+  const repeatsArr = [avg(s0.map(r => r.repeats)), avg(s1.map(r => r.repeats)), avg(s2.map(r => r.repeats))];
+  const silentArr = [avg(s0.map(r => r.silentErrors)), avg(s1.map(r => r.silentErrors)), avg(s2.map(r => r.silentErrors))];
+
+  $("#pillsQ2").innerHTML = `
+    <span class="mpill">Sintonías/Turno: <b>${avg(allShifts.map(r => r.retunes)).toFixed(1)}</b></span>
+    <span class="mpill">Audio/Turno: <b>${avg(allShifts.map(r => r.repeats)).toFixed(1)}</b></span>
+    <span class="mpill">Dificultad Encuesta: <b>${surveyed.length ? `${avgDif.toFixed(1)}/5` : "N/A"}</b></span>
+  `;
+  drawGroupedBarChart("#chartQ2", SHIFTS, [
+    { name: "Ajustes Perilla", values: retunesArr, color: "#eab308" },
+    { name: "Audio Escuchado", values: repeatsArr, color: "#38bdf8" },
+    { name: "Errores Silenciosos", values: silentArr, color: "#f87171" }
+  ], { decimals: 1, minMax: 12 });
+
+  const q2El = $("#insightQ2");
+  if (!active.length) {
+    q2El.className = "insight";
+    q2El.innerHTML = "<b>Sin sesiones registradas:</b>Aquí se analizará la relación entre ajustes de sintonía CRT, audio y errores silenciosos.";
+  } else if (avgSilentErr >= 1.2) {
+    q2El.className = "insight bad";
+    q2El.innerHTML = `<b>Decisión de diseño sugerida (Alta tasa de error en catalogación):</b>Se registran <b>${avgSilentErr.toFixed(2)}</b> errores silenciosos por turno. Se recomienda reducir el costo del Espectrograma en Taller para facilitar la diferenciación entre Estrella y Púlsar.`;
+  } else {
+    q2El.className = "insight";
+    q2El.innerHTML = `<b>Interpretación en tiempo real (Deducción equilibrada):</b>Se registran ${avg(allShifts.map(r => r.retunes)).toFixed(1)} ajustes de perilla y <b>${avgSilentErr.toFixed(2)}</b> errores silenciosos por turno, manteniendo un reto deductivo justo.`;
+  }
+
+  // --- PREGUNTA 3 ---
+  const timeArr = [avg(s0.map(r => r.time)), avg(s1.map(r => r.time)), avg(s2.map(r => r.time))];
+  const fixArr = [avg(s0.map(r => r.fix)), avg(s1.map(r => r.fix)), avg(s2.map(r => r.fix))];
+  const crashArr = [avg(s0.map(r => r.crash)), avg(s1.map(r => r.crash)), avg(s2.map(r => r.crash))];
+  const crashedShifts = allShifts.filter(r => r.crash > 0 && r.fix > 0);
+  const avgFix = avg(crashedShifts.map(r => r.fix));
+
+  $("#pillsQ3").innerHTML = `
+    <span class="mpill">Duración Turno: <b>${avg(allShifts.map(r => r.time)).toFixed(0)}s / 600s</b></span>
+    <span class="mpill">Reparación Srv: <b>${avgFix.toFixed(1)}s</b></span>
+    <span class="mpill">Turnos Fallidos: <b>${closedShifts.filter(r => r.ok === 0).length}</b></span>
+  `;
+  drawGroupedBarChart("#chartQ3", SHIFTS, [
+    { name: "Duración Turno (s)", values: timeArr, color: "#4ade80" },
+    { name: "Tiempo Fix Srv (s)", values: fixArr, color: "#eab308" },
+    { name: "Caídas Srv", values: crashArr, color: "#f87171" }
+  ], { decimals: 0, minMax: 300 });
+
+  const q3El = $("#insightQ3");
+  if (!active.length) {
+    q3El.className = "insight";
+    q3El.innerHTML = "<b>Sin sesiones registradas:</b>Se comparará el tiempo invertido por turno contra el límite de 600s (10 minutos).";
+  } else if (avgFix > 22 || (closedShifts.length > 0 && completionRate < 75)) {
+    q3El.className = "insight warn";
+    q3El.innerHTML = `<b>Decisión de diseño sugerida (Cuello de botella en Servidor):</b>La reparación de 4 relés sin pistas toma <b>${avgFix.toFixed(1)}s</b> en promedio. Considera reducir la secuencia a 3 relés si provoca expiración de turnos.`;
+  } else {
+    q3El.className = "insight";
+    q3El.innerHTML = `<b>Interpretación en tiempo real (Ritmo bien calibrado):</b>El tiempo promedio por turno es de <b>${avg(allShifts.map(r => r.time)).toFixed(0)}s</b> frente al límite de 600s y las caídas de servidor se resuelven en <b>${avgFix.toFixed(1)}s</b>.`;
+  }
+
+  // --- PREGUNTA 4 ---
+  const satUsersPct = active.length ? (active.filter(s => s.satReportsTotal > 0).length / active.length) * 100 : 0;
+  const notesUsersPct = active.length ? (active.filter(s => s.notesLength > 0).length / active.length) * 100 : 0;
+  const avgNotesLen = avg(active.map(s => s.notesLength));
+
+  $("#pillsQ4").innerHTML = `
+    <span class="mpill">Anomalía N3: <b>${anomRate.toFixed(0)}%</b></span>
+    <span class="mpill">Reportes Satélite: <b>${satUsersPct.toFixed(0)}%</b></span>
+    <span class="mpill">Bitácora Activa: <b>${notesUsersPct.toFixed(0)}%</b></span>
+  `;
+  drawGroupedBarChart("#chartQ4", ["Exploración (%)", "Encuesta (1-5)"], [
+    { name: "Anomalía N3 (%)", values: [anomRate, 0], color: "#f87171" },
+    { name: "Satélites (%)", values: [satUsersPct, 0], color: "#38bdf8" },
+    { name: "Bitácora (%)", values: [notesUsersPct, 0], color: "#c084fc" },
+    { name: "Inmersión (1-5)", values: [0, avgFun], color: "#4ade80" }
+  ], { decimals: 1, minMax: 100 });
+
+  const q4El = $("#insightQ4");
+  if (!active.length) {
+    q4El.className = "insight";
+    q4El.innerHTML = "<b>Sin sesiones registradas:</b>Se evaluará el descubrimiento de la anomalía nocturna, reportes de satélite y uso de bitácora.";
+  } else {
+    q4El.className = "insight";
+    q4El.innerHTML = `<b>Interpretación en tiempo real (Exploración secundaria):</b>El <b>${satUsersPct.toFixed(0)}%</b> envió telemetría satelital, el <b>${notesUsersPct.toFixed(0)}%</b> usó la bitácora (${avgNotesLen.toFixed(0)} caracteres prom.) y el <b>${anomRate.toFixed(0)}%</b> interceptó la anomalía en Noche 3.`;
+  }
+
+  // Tabla detallada con Nombre, Fecha y Tiempo Jugado
+  $("#tableCount").textContent = `${active.length} sesión(es) · ${allShifts.length} registro(s) de jornada`;
+  if (!active.length) {
+    $("#tableBody").innerHTML = `<tr><td colspan="16" style="text-align:center;color:var(--mut);padding:18px">No hay sesiones cargadas aún. Abre el videojuego, ingresa tu nombre y comienza a jugar para ver los datos aquí en vivo.</td></tr>`;
+  } else {
+    $("#tableBody").innerHTML = active.flatMap(s =>
+      s.shifts.map(r => {
+        const badgeCls = r.status === "COMPLETADA" ? "b-ok" : (r.status === "FALLIDA_TIEMPO" ? "b-fail" : "b-live");
+        const surveyTxt = s.survey ? `${s.survey.clar} / ${s.survey.dif} / ${s.survey.fun}` : "En curso";
+        return `
+          <tr>
+            <td><b>${s.playerName}</b> <span style="color:var(--mut)">(#${s.id})</span></td>
+            <td>${s.date}</td>
+            <td><b>${fmtDuration(s.totalPlayTime)}</b></td>
+            <td>${r.shift}</td>
+            <td><span class="badge ${badgeCls}">${r.status}</span></td>
+            <td>${r.time.toFixed(1)}s</td>
+            <td>${r.tFirst.toFixed(1)}s</td>
+            <td>${r.invalid}</td>
+            <td>${r.retunes}</td>
+            <td>${r.silentErrors}</td>
+            <td>${r.specUses}</td>
+            <td>${r.crash}</td>
+            <td>${r.fix.toFixed(1)}s</td>
+            <td>${r.satReports}</td>
+            <td>${r.anomSent ? "SÍ" : "NO"}</td>
+            <td>${surveyTxt}</td>
+          </tr>
+        `;
+      })
+    ).join("");
+  }
+}
+
+// Sincronización en tiempo real mediante BroadcastChannel + evento storage + sondeo ligero
+if (bc) {
+  bc.onmessage = ev => {
+    if (ev.data?.type === "SESSION_UPDATE" && ev.data.session) {
+      addSessionObj(ev.data.session);
+      renderDashboard();
+    }
+  };
+}
+
+window.addEventListener("storage", ev => {
+  if (ev.key === LIVE_STORAGE_KEY) {
+    loadFromLocalStorage();
+    renderDashboard();
+  }
+});
+
+setInterval(() => {
+  loadFromLocalStorage();
+  renderDashboard();
+}, 2000);
+
+// Carga manual de archivos JSON
+async function handleFiles(fileList) {
+  let loaded = 0;
+  for (const file of fileList) {
+    try {
+      const txt = await file.text();
+      const parsed = JSON.parse(txt);
+      if (Array.isArray(parsed)) {
+        parsed.forEach(item => { if (addSessionObj(item)) loaded++; });
+      } else if (addSessionObj(parsed)) {
+        loaded++;
+      }
+    } catch (_) {
+      alert(`Error leyendo ${file.name}: JSON inválido.`);
+    }
+  }
+  if (loaded > 0) {
+    selectedSessionId = "ALL";
+    renderDashboard();
+  }
+}
+
+$("#fileInput").onchange = e => { handleFiles(e.target.files); e.target.value = ""; };
+
+const dz = $("#dropzone");
+dz.ondragover = e => { e.preventDefault(); dz.classList.add("drag"); };
+dz.ondragleave = () => dz.classList.remove("drag");
+dz.ondrop = e => {
+  e.preventDefault();
+  dz.classList.remove("drag");
+  if (e.dataTransfer?.files?.length) handleFiles(e.dataTransfer.files);
+};
+
+$("#clearBtn").onclick = () => {
+  sessions = [];
+  selectedSessionId = "ALL";
+  try { localStorage.removeItem(LIVE_STORAGE_KEY); } catch (_) {}
+  renderDashboard();
+};
+
+$("#pasteModalBtn").onclick = () => { $("#pasteArea").value = ""; $("#pasteModal").classList.add("open"); };
+$("#closeModalBtn").onclick = () => $("#pasteModal").classList.remove("open");
+$("#confirmPasteBtn").onclick = () => {
+  try {
+    const parsed = JSON.parse($("#pasteArea").value);
+    if (Array.isArray(parsed)) parsed.forEach(addSessionObj);
+    else addSessionObj(parsed);
+    $("#pasteModal").classList.remove("open");
+    selectedSessionId = "ALL";
+    renderDashboard();
+  } catch (_) {
+    alert("El texto pegado no es un JSON válido.");
+  }
+};
+
+$("#exportCsvBtn").onclick = () => {
+  const active = getActiveSessions();
+  if (!active.length) return alert("No hay sesiones registradas para exportar.");
+  const headers = ["session_id","player_name","date","total_play_time_s","shift","status","shift_time_s","t_first_s","invalid_clicks","retunes","repeats","silent_errors","spec_uses","crashes","fix_time_s","sat_reports","anom_sent","energy_end","money_end","survey_clar","survey_dif","survey_fun","notes_len"];
+  const rows = active.flatMap(s => s.shifts.map(r => [
+    s.id, `"${s.playerName.replace(/"/g, '""')}"`, `"${s.date}"`, s.totalPlayTime,
+    r.shift, r.status, r.time, r.tFirst, r.invalid, r.retunes, r.repeats,
+    r.silentErrors, r.specUses, r.crash, r.fix, r.satReports, r.anomSent,
+    r.energy, r.money, s.survey ? s.survey.clar : "", s.survey ? s.survey.dif : "", s.survey ? s.survey.fun : "", s.notesLength
+  ].join(",")));
+  const csv = [headers.join(","), ...rows].join("\n");
+  const blob = new Blob([csv], {type: "text/csv;charset=utf-8;"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "erial7_metricas_validacion.csv";
+  a.click();
+};
+
+// Inicializar leyendo cualquier sesión real almacenada (sin datos ficticios)
+loadFromLocalStorage();
+renderDashboard();
+</script>
+</body>
+</html>
