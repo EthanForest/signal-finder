@@ -27,9 +27,11 @@ h1{margin:0;font-size:20px;color:var(--accent);letter-spacing:0.8px}
   display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;
   background:#0d2618;border:1px solid #22c55e;color:#86efac;font-size:11px;font-weight:700;
 }
+.live-dot.warn{background:#261f0d;border-color:#eab308;color:#fde047}
+.live-dot.err{background:#290d0d;border-color:#ef4444;color:#fca5a5}
 .live-dot::before{
-  content:"";width:7px;height:7px;border-radius:50%;background:#4ade80;
-  box-shadow:0 0 8px #4ade80;animation:pulse 1.4s infinite;
+  content:"";width:7px;height:7px;border-radius:50%;background:currentColor;
+  box-shadow:0 0 8px currentColor;animation:pulse 1.4s infinite;
 }
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
@@ -42,6 +44,8 @@ button, .file-btn{
 button:hover, .file-btn:hover{background:#236b41}
 button.alt{background:#111e18;color:var(--fg);border:1px solid var(--border)}
 button.alt:hover{background:#192c23}
+button.blue{background:#0f2e42;border-color:#0284c7;color:#e0f2fe}
+button.blue:hover{background:#15405c}
 button.bad{background:#451616;border-color:#991b1b;color:#fecaca}
 input[type=file]{display:none}
 
@@ -122,12 +126,13 @@ tr:hover td{background:#122019}
 }
 .modal.open{display:flex}
 .modal-box{
-  background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;max-width:540px;width:100%;
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;max-width:560px;width:100%;
 }
-textarea{
-  width:100%;height:160px;background:#070d0a;color:var(--fg);border:1px solid var(--border);
-  border-radius:6px;padding:10px;font:12px inherit;margin:10px 0;
+textarea, input[type=text]{
+  width:100%;background:#070d0a;color:var(--fg);border:1px solid var(--border);
+  border-radius:6px;padding:10px;font:12px inherit;margin:8px 0;
 }
+textarea{height:150px}
 </style>
 </head>
 <body>
@@ -137,23 +142,25 @@ textarea{
       <h1>ERIAL-7 // DASHBOARD DE VALIDACIÓN DE DISEÑO</h1>
       <div class="sub">
         <span>Telemetría real de jugadores · Prototipo "Frecuencia de Fondo"</span>
-        <span class="live-dot" id="liveBadge">SINCRONIZACIÓN EN VIVO ACTIVA</span>
+        <span class="live-dot" id="liveBadge">MODO LOCAL</span>
       </div>
     </div>
     <div class="controls">
+      <button class="blue" id="cloudModalBtn">☁ Conectar Nube</button>
+      <button class="alt" id="copyGameLinkBtn" style="display:none">🔗 Copiar Link Juego</button>
       <label class="file-btn">
         📂 Cargar JSON(s)
         <input type="file" id="fileInput" accept=".json,application/json" multiple>
       </label>
       <button class="alt" id="pasteModalBtn">📋 Pegar JSON</button>
       <button class="alt" id="exportCsvBtn">⬇ Exportar CSV</button>
-      <button class="bad" id="clearBtn">Limpiar registros</button>
+      <button class="bad" id="clearBtn">Limpiar</button>
     </div>
   </header>
 
   <div class="dropzone" id="dropzone">
-    <span style="font-size:12px;color:var(--mut)">
-      Recibe datos <b style="color:var(--fg)">automáticamente en tiempo real</b> mientras juegas en otra pestaña, o arrastra aquí archivos <b style="color:var(--fg)">.json</b> exportados.
+    <span style="font-size:12px;color:var(--mut)" id="bannerHelp">
+      Conecta una URL de Firebase Realtime Database (<b style="color:var(--fg)">☁ Conectar Nube</b>) para recibir en vivo las partidas de cualquier jugador en internet, o arrastra archivos <b style="color:var(--fg)">.json</b>.
     </span>
     <span id="statusLabel" style="font-size:12px;color:var(--accent)"></span>
   </div>
@@ -239,6 +246,28 @@ textarea{
   </section>
 </main>
 
+<!-- MODAL CONECTAR NUBE -->
+<div class="modal" id="cloudModal">
+  <div class="modal-box">
+    <b style="color:var(--blue)">☁ SINCRONIZACIÓN ONLINE MULTIDISPOSITIVO</b>
+    <p style="font-size:12px;color:var(--mut);margin:6px 0">
+      Para que las partidas que jueguen otras personas en sus computadoras o celulares aparezcan aquí automáticamente, pega la URL de tu <b>Firebase Realtime Database</b> (en modo prueba):
+    </p>
+    <input type="text" id="cloudUrlInput" placeholder="https://tu-proyecto-default-rtdb.firebaseio.com">
+    <div style="font-size:11px;color:var(--mut);background:#08100c;border:1px solid var(--border);padding:8px;border-radius:6px;margin-bottom:10px">
+      <b>Tip:</b> Una vez guardada la URL aquí, pulsa <b>"🔗 Copiar Link Juego"</b> en la barra superior para compartir el enlace ya conectado con tus evaluadores, o pega esta misma URL en la variable <code>CLOUD_DB_URL</code> de <code>index.html</code> y <code>dashboard.html</code>.
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <button class="bad" id="disconnectCloudBtn">Desconectar</button>
+      <div style="display:flex;gap:8px">
+        <button class="alt" id="closeCloudModalBtn">Cancelar</button>
+        <button class="blue" id="saveCloudBtn">Guardar y sincronizar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PEGAR JSON -->
 <div class="modal" id="pasteModal">
   <div class="modal-box">
     <b style="color:var(--accent)">PEGAR JSON DE SESIÓN</b>
@@ -254,11 +283,43 @@ textarea{
 </div>
 
 <script>
+// ============================================================================
+// CONFIGURACIÓN DE BASE DE DATOS EN LA NUBE (Firebase Realtime Database)
+// ============================================================================
+const CLOUD_DB_URL = "https://signal-finder-5e191-default-rtdb.firebaseio.com";
+
 const $ = s => document.querySelector(s);
 const SHIFTS = ["DIA 1", "DIA 2", "NOCHE 3"];
 const LIVE_STORAGE_KEY = "erial7_live_sessions_v1";
+const DB_URL_STORAGE_KEY = "erial7_cloud_db_url_v1";
 const bc = ("BroadcastChannel" in window) ? new BroadcastChannel("erial7_telemetry") : null;
 
+function normalizeDbUrl(raw) {
+  const clean = String(raw || "").trim().replace(/\/+$/, "");
+  if (!clean) return "";
+  return /^https?:\/\//i.test(clean) ? clean : `https://${clean}`;
+}
+
+function getCloudDbUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = normalizeDbUrl(params.get("db"));
+    if (fromQuery) {
+      localStorage.setItem(DB_URL_STORAGE_KEY, fromQuery);
+      return fromQuery;
+    }
+  } catch (_) {}
+  const fromConst = normalizeDbUrl(CLOUD_DB_URL);
+  if (fromConst) return fromConst;
+  try {
+    return normalizeDbUrl(localStorage.getItem(DB_URL_STORAGE_KEY));
+  } catch (_) {
+    return "";
+  }
+}
+
+let activeDbUrl = getCloudDbUrl();
+let cloudConnState = activeDbUrl ? "CONNECTING" : "LOCAL"; // LOCAL | CONNECTING | ONLINE | ERROR
 let sessions = [];
 let selectedSessionId = "ALL";
 
@@ -328,6 +389,54 @@ function loadFromLocalStorage() {
       list.forEach(item => addSessionObj(item));
     }
   } catch (_) {}
+}
+
+function updateCloudUi() {
+  const badge = $("#liveBadge");
+  const copyBtn = $("#copyGameLinkBtn");
+  const help = $("#bannerHelp");
+
+  if (!activeDbUrl) {
+    badge.className = "live-dot warn";
+    badge.textContent = "SINCRONIZACIÓN SOLO LOCAL";
+    copyBtn.style.display = "none";
+    help.innerHTML = `Conecta una URL de Firebase Realtime Database (<b style="color:var(--fg)">☁ Conectar Nube</b>) para recibir en vivo las partidas de cualquier jugador en internet, o arrastra archivos <b style="color:var(--fg)">.json</b>.`;
+    return;
+  }
+
+  copyBtn.style.display = "inline-flex";
+  if (cloudConnState === "ONLINE") {
+    badge.className = "live-dot";
+    badge.textContent = "NUBE ONLINE · TIEMPO REAL";
+    help.innerHTML = `Conectado a <b style="color:var(--accent)">${activeDbUrl}</b>. Usa <b style="color:var(--fg)">🔗 Copiar Link Juego</b> para compartir el enlace conectado con tus jugadores.`;
+  } else if (cloudConnState === "ERROR") {
+    badge.className = "live-dot err";
+    badge.textContent = "ERROR DE CONEXIÓN NUBE";
+    help.innerHTML = `No se pudo leer <b style="color:var(--bad)">${activeDbUrl}</b>. Verifica que la URL sea correcta y que las reglas de Firebase permitan lectura/escritura.`;
+  } else {
+    badge.className = "live-dot warn";
+    badge.textContent = "CONECTANDO A NUBE...";
+  }
+}
+
+async function fetchFromCloud() {
+  if (!activeDbUrl) return;
+  try {
+    const res = await fetch(`${activeDbUrl}/sessions.json`, {cache: "no-store"});
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    cloudConnState = "ONLINE";
+    if (data && typeof data === "object") {
+      Object.values(data).forEach(item => {
+        if (item && typeof item === "object") addSessionObj(item);
+      });
+    }
+    updateCloudUi();
+    renderDashboard();
+  } catch (_) {
+    cloudConnState = "ERROR";
+    updateCloudUi();
+  }
 }
 
 function getActiveSessions() {
@@ -410,7 +519,6 @@ function renderDashboard() {
     ? `${sessions.length} sesión(es) real(es) registrada(s)`
     : "Esperando inicio de partida o carga de archivo .json...";
 
-  // Barra de selección de jugadores/sesiones reales
   const bar = $("#sessionBar");
   if (!sessions.length) {
     bar.innerHTML = "";
@@ -443,7 +551,6 @@ function renderDashboard() {
   const night3Shifts = active.map(s => s.shifts[2]).filter(Boolean);
   const anomRate = night3Shifts.length ? (night3Shifts.filter(r => r.anomSent > 0).length / night3Shifts.length) * 100 : 0;
 
-  // KPIs superiores
   $("#kpiGrid").innerHTML = `
     <div class="kpi">
       <div class="kpi-title">Jugadores & Tiempo Promedio</div>
@@ -582,10 +689,9 @@ function renderDashboard() {
     q4El.innerHTML = `<b>Interpretación en tiempo real (Exploración secundaria):</b>El <b>${satUsersPct.toFixed(0)}%</b> envió telemetría satelital, el <b>${notesUsersPct.toFixed(0)}%</b> usó la bitácora (${avgNotesLen.toFixed(0)} caracteres prom.) y el <b>${anomRate.toFixed(0)}%</b> interceptó la anomalía en Noche 3.`;
   }
 
-  // Tabla detallada con Nombre, Fecha y Tiempo Jugado
   $("#tableCount").textContent = `${active.length} sesión(es) · ${allShifts.length} registro(s) de jornada`;
   if (!active.length) {
-    $("#tableBody").innerHTML = `<tr><td colspan="16" style="text-align:center;color:var(--mut);padding:18px">No hay sesiones cargadas aún. Abre el videojuego, ingresa tu nombre y comienza a jugar para ver los datos aquí en vivo.</td></tr>`;
+    $("#tableBody").innerHTML = `<tr><td colspan="16" style="text-align:center;color:var(--mut);padding:18px">No hay sesiones cargadas aún. Conecta la nube o abre el videojuego para registrar datos.</td></tr>`;
   } else {
     $("#tableBody").innerHTML = active.flatMap(s =>
       s.shifts.map(r => {
@@ -616,7 +722,6 @@ function renderDashboard() {
   }
 }
 
-// Sincronización en tiempo real mediante BroadcastChannel + evento storage + sondeo ligero
 if (bc) {
   bc.onmessage = ev => {
     if (ev.data?.type === "SESSION_UPDATE" && ev.data.session) {
@@ -633,10 +738,49 @@ window.addEventListener("storage", ev => {
   }
 });
 
+// Sondeo continuo (local cada 2s, nube cada 4s)
 setInterval(() => {
   loadFromLocalStorage();
   renderDashboard();
 }, 2000);
+
+setInterval(() => {
+  if (activeDbUrl) fetchFromCloud();
+}, 4000);
+
+// Modal configuración nube
+$("#cloudModalBtn").onclick = () => {
+  $("#cloudUrlInput").value = activeDbUrl;
+  $("#cloudModal").classList.add("open");
+};
+$("#closeCloudModalBtn").onclick = () => $("#cloudModal").classList.remove("open");
+
+$("#saveCloudBtn").onclick = () => {
+  const url = normalizeDbUrl($("#cloudUrlInput").value);
+  if (!url) return alert("Ingresa una URL válida de Firebase Realtime Database.");
+  activeDbUrl = url;
+  cloudConnState = "CONNECTING";
+  try { localStorage.setItem(DB_URL_STORAGE_KEY, url); } catch (_) {}
+  $("#cloudModal").classList.remove("open");
+  updateCloudUi();
+  fetchFromCloud();
+};
+
+$("#disconnectCloudBtn").onclick = () => {
+  activeDbUrl = "";
+  cloudConnState = "LOCAL";
+  try { localStorage.removeItem(DB_URL_STORAGE_KEY); } catch (_) {}
+  $("#cloudModal").classList.remove("open");
+  updateCloudUi();
+};
+
+$("#copyGameLinkBtn").onclick = () => {
+  if (!activeDbUrl) return;
+  const base = window.location.href.replace(/dashboard\.html.*$/i, "").replace(/\/+$/, "");
+  const gameUrl = `${base}/?db=${encodeURIComponent(activeDbUrl)}`;
+  try { navigator.clipboard.writeText(gameUrl); } catch (_) {}
+  alert(`Enlace del juego conectado copiado:\n\n${gameUrl}\n\nCompártelo con cualquier jugador para recibir sus métricas aquí en vivo.`);
+};
 
 // Carga manual de archivos JSON
 async function handleFiles(fileList) {
@@ -671,10 +815,14 @@ dz.ondrop = e => {
   if (e.dataTransfer?.files?.length) handleFiles(e.dataTransfer.files);
 };
 
-$("#clearBtn").onclick = () => {
+$("#clearBtn").onclick = async () => {
+  if (!confirm("¿Limpiar todos los registros del dashboard?")) return;
   sessions = [];
   selectedSessionId = "ALL";
   try { localStorage.removeItem(LIVE_STORAGE_KEY); } catch (_) {}
+  if (activeDbUrl) {
+    try { await fetch(`${activeDbUrl}/sessions.json`, {method: "DELETE"}); } catch (_) {}
+  }
   renderDashboard();
 };
 
@@ -711,9 +859,10 @@ $("#exportCsvBtn").onclick = () => {
   a.click();
 };
 
-// Inicializar leyendo cualquier sesión real almacenada (sin datos ficticios)
+updateCloudUi();
 loadFromLocalStorage();
 renderDashboard();
+if (activeDbUrl) fetchFromCloud();
 </script>
 </body>
 </html>
