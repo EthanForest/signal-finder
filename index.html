@@ -35,6 +35,7 @@ main{max-width:760px;margin:0 auto}
 .pill.night{border-color:#991b1b;color:#fca5a5;background:#1f0d0d}
 .pill.lowtime{border-color:#ca8a04;color:#fde047}
 .pill.live{border-color:#22c55e;color:#86efac;background:#0d2618}
+.pill.err{border-color:#991b1b;color:#fca5a5;background:#240d0d}
 #tabs{display:flex;overflow-x:auto;background:#080e0b;border-bottom:1px solid var(--border)}
 .tab{
   flex:none;background:transparent;color:var(--mut);border:0;border-right:1px solid var(--border);
@@ -112,6 +113,11 @@ textarea{
 </main>
 
 <script>
+// ============================================================================
+// CONFIGURACIÓN DE BASE DE DATOS EN LA NUBE (Firebase Realtime Database)
+// ============================================================================
+const CLOUD_DB_URL = "https://signal-finder-5e191-default-rtdb.firebaseio.com";
+
 const $ = s => document.querySelector(s);
 const CLASSES = ["Estrella", "Planeta", "Asteroide", "Satelite", "Pulsar"];
 const FREQS = [220, 115, 310, 780, 460];
@@ -120,19 +126,49 @@ const SHIFT_DURATION = 600; // 10 minutos exactos por jornada (600 segundos)
 const W = 1400, H = 900;
 const stars = Array.from({length: 340}, () => [Math.random()*W, Math.random()*H, Math.random()*1.5 + 0.4]);
 
-// Canal de telemetría en tiempo real hacia dashboard.html (mismo origen)
 const LIVE_STORAGE_KEY = "erial7_live_sessions_v1";
+const DB_URL_STORAGE_KEY = "erial7_cloud_db_url_v1";
 const bc = ("BroadcastChannel" in window) ? new BroadcastChannel("erial7_telemetry") : null;
+
+function normalizeDbUrl(raw) {
+  const clean = String(raw || "").trim().replace(/\/+$/, "");
+  if (!clean) return "";
+  return /^https?:\/\//i.test(clean) ? clean : `https://${clean}`;
+}
+
+function getCloudDbUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = normalizeDbUrl(params.get("db"));
+    if (fromQuery) {
+      localStorage.setItem(DB_URL_STORAGE_KEY, fromQuery);
+      return fromQuery;
+    }
+  } catch (_) {}
+  const fromConst = normalizeDbUrl(CLOUD_DB_URL);
+  if (fromConst) return fromConst;
+  try {
+    return normalizeDbUrl(localStorage.getItem(DB_URL_STORAGE_KEY));
+  } catch (_) {
+    return "";
+  }
+}
+
+let activeDbUrl = getCloudDbUrl();
+let cloudStatus = activeDbUrl ? "READY" : "LOCAL_ONLY"; // READY | SYNCED | ERROR | LOCAL_ONLY
+let cloudInFlight = false;
+let cloudQueuedSnap = null;
 
 let V = "intro", G = null, S = null;
 let playerNameInput = "";
 let sessionStartPerf = 0;
 let liveSyncTimer = 0;
+let cloudSyncTimer = 0;
 
 let sigs = [], cam = {x: 380, y: 300};
 let en = 100, cap = 100, rd = 0;
 let mail = [], selMail = null, notes = "";
-let shift = 0; // 0 = Dia 1, 1 = Dia 2, 2 = Noche 3
+let shift = 0;
 let shiftLeft = SHIFT_DURATION;
 let srv = null, crashes = 0;
 let cur = null, knobF = 50, knobP = 50, choice = null;
@@ -161,7 +197,6 @@ function buildSessionSnapshot(finalized = false) {
   S.status = finalized ? "FINALIZADA" : "EN_CURSO";
   S.lastUpdated = new Date().toISOString();
 
-  // Incluir las jornadas cerradas + la jornada actualmente en curso si aún no se cierra
   const shiftsList = [...S.shifts];
   if (!finalized && R && V !== "survey" && V !== "end") {
     const liveR = {
@@ -188,7 +223,39 @@ function buildSessionSnapshot(finalized = false) {
   };
 }
 
-function syncLiveTelemetry(finalized = false) {
+async function pushSnapshotToCloud(snap) {
+  if (!activeDbUrl || !snap) return;
+  if (cloudInFlight) {
+    cloudQueuedSnap = snap;
+    return;
+  }
+  cloudInFlight = true;
+  try {
+    const res = await fetch(`${activeDbUrl}/sessions/${encodeURIComponent(snap.id)}.json`, {
+      method: "PUT",
+      body: JSON.stringify(snap)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (cloudStatus !== "SYNCED") {
+      cloudStatus = "SYNCED";
+      updTop();
+    }
+  } catch (_) {
+    if (cloudStatus !== "ERROR") {
+      cloudStatus = "ERROR";
+      updTop();
+    }
+  } finally {
+    cloudInFlight = false;
+    if (cloudQueuedSnap) {
+      const next = cloudQueuedSnap;
+      cloudQueuedSnap = null;
+      pushSnapshotToCloud(next);
+    }
+  }
+}
+
+function syncLiveTelemetry(finalized = false, pushCloudNow = true) {
   const snap = buildSessionSnapshot(finalized);
   if (!snap) return;
   try {
@@ -203,6 +270,17 @@ function syncLiveTelemetry(finalized = false) {
   if (bc) {
     try { bc.postMessage({type: "SESSION_UPDATE", session: snap}); } catch (_) {}
   }
+
+  if (pushCloudNow && activeDbUrl) {
+    pushSnapshotToCloud(snap);
+  }
+}
+
+function openDashboardWindow() {
+  const target = activeDbUrl
+    ? `dashboard.html?db=${encodeURIComponent(activeDbUrl)}`
+    : "dashboard.html";
+  window.open(target, "_blank");
 }
 
 function fmtClock(sec) {
@@ -266,7 +344,6 @@ function makeSignal(cat, anom = false) {
     y = 110 + Math.random() * (H - 220);
   } while (tries++ < 60 && sigs.some(s => s.st !== "gone" && Math.hypot(s.x - x, s.y - y) < 200));
 
-  // Asteroides (2) y Satelites (3) derivan lentamente; Estrella (0), Planeta (1) y Pulsar (4) son fijos
   const moving = (cat === 2 || cat === 3);
   const ang = Math.random() * Math.PI * 2;
   const spd = moving ? (2.2 + Math.random() * 1.4) : 0;
@@ -344,7 +421,7 @@ function initShift() {
   }
 
   ensureSectorDiversity();
-  syncLiveTelemetry(false);
+  syncLiveTelemetry(false, true);
 }
 
 function start(operatorName) {
@@ -393,7 +470,7 @@ function start(operatorName) {
 function markFirst() {
   if (R && R.tFirst === null) {
     R.tFirst = +((performance.now() - R.t0) / 1000).toFixed(2);
-    syncLiveTelemetry(false);
+    syncLiveTelemetry(false, true);
   }
 }
 
@@ -421,12 +498,22 @@ function updBadges() {
   }
 }
 
+function cloudBadgeHtml() {
+  if (cloudStatus === "SYNCED") return `<span class="pill live" title="Sincronizando en vivo con la nube">☁ ONLINE</span>`;
+  if (cloudStatus === "READY") return `<span class="pill live" title="Base en la nube configurada">☁ LISTO</span>`;
+  if (cloudStatus === "ERROR") return `<span class="pill err" title="Error conectando con la nube">☁ ERROR</span>`;
+  return `<span class="pill" title="Solo almacenamiento local del navegador">LOCAL</span>`;
+}
+
 function updTop() {
   const st = $("#st");
   if (!G || V === "intro") {
-    st.innerHTML = `<button class="alt" id="openDashTop" style="padding:2px 8px;font-size:11px">📊 Abrir Dashboard</button>`;
+    st.innerHTML = `
+      ${cloudBadgeHtml()}
+      <button class="alt" id="openDashTop" style="padding:2px 8px;font-size:11px">📊 Abrir Dashboard</button>
+    `;
     const od = $("#openDashTop");
-    if (od) od.onclick = () => window.open("dashboard.html", "_blank");
+    if (od) od.onclick = openDashboardWindow;
     const t = $("#toast");
     t.textContent = flash;
     t.className = flash ? (flashOk ? "ok" : "bad") : "";
@@ -443,11 +530,12 @@ function updTop() {
     <span class="pill">PWR ${Math.round(en)}/${cap}</span>
     <span class="pill">CR $${G.money}</span>
     <span class="pill">OBJ: ${o ? CLASSES[o.cat] : "COMPLETADO"}</span>
-    <button class="alt" id="openDashTop" style="padding:2px 7px;font-size:11px" title="Abrir dashboard en vivo">📊 Live</button>
-    <button class="alt" id="muteBtn" style="padding:2px 7px;font-size:11px">${muted ? "AUDIO: OFF" : "AUDIO: ON"}</button>
+    ${cloudBadgeHtml()}
+    <button class="alt" id="openDashTop" style="padding:2px 7px;font-size:11px" title="Abrir dashboard">📊</button>
+    <button class="alt" id="muteBtn" style="padding:2px 7px;font-size:11px">${muted ? "🔇" : "🔊"}</button>
   `;
   const od = $("#openDashTop");
-  if (od) od.onclick = () => window.open("dashboard.html", "_blank");
+  if (od) od.onclick = openDashboardWindow;
   const mb = $("#muteBtn");
   if (mb) mb.onclick = () => { muted = !muted; if (muted) stopVoice(); updTop(); };
 
@@ -483,7 +571,7 @@ function triggerCrash() {
     {kind: "sv"}
   );
   msg("[ALERTA] Servidor fuera de linea", 0);
-  syncLiveTelemetry(false);
+  syncLiveTelemetry(false, true);
   if (V === "srv" || V === "mail") render();
   else updBadges();
 }
@@ -501,7 +589,7 @@ function evaluateTransmission(ev) {
       assignRef.done = true;
       ensureSectorDiversity();
     }
-    syncLiveTelemetry(false);
+    syncLiveTelemetry(false, true);
     if (V === "mail") render();
     else updBadges();
     return;
@@ -514,7 +602,7 @@ function evaluateTransmission(ev) {
       `La verificacion espectral en Central no coincide con tu reporte (${CLASSES[chosenCat]}).\n\nRegistro real detectado por la red: ${CLASSES[sig.cat]}. Abono acreditado: $0 CR.`
     );
     ensureSectorDiversity();
-    syncLiveTelemetry(false);
+    syncLiveTelemetry(false, true);
     if (V === "mail") render();
     else updBadges();
     return;
@@ -537,7 +625,7 @@ function evaluateTransmission(ev) {
     );
     ensureSectorDiversity();
   }
-  syncLiveTelemetry(false);
+  syncLiveTelemetry(false, true);
   updTop();
   if (V === "mail" || V === "shop") render();
 }
@@ -572,7 +660,7 @@ function advanceShiftByTimeOrRest(timedOut) {
     render();
   } else {
     V = "survey";
-    syncLiveTelemetry(false);
+    syncLiveTelemetry(false, true);
     updTop();
     render();
   }
@@ -633,7 +721,7 @@ function tick(dt) {
         beep(680, 0.12, "sine", 0.07);
         msg(`[OK] Trama #${s.id} disponible en Procesador`, 1);
         ensureSectorDiversity();
-        syncLiveTelemetry(false);
+        syncLiveTelemetry(false, true);
         if (V === "map" || V === "mail") render();
         else updBadges();
       }
@@ -671,7 +759,16 @@ function tick(dt) {
   liveSyncTimer += dt;
   if (liveSyncTimer >= 1.5) {
     liveSyncTimer = 0;
-    syncLiveTelemetry(false);
+    syncLiveTelemetry(false, false);
+  }
+
+  cloudSyncTimer += dt;
+  if (cloudSyncTimer >= 4.0) {
+    cloudSyncTimer = 0;
+    if (activeDbUrl) {
+      const snap = buildSessionSnapshot(false);
+      pushSnapshotToCloud(snap);
+    }
   }
 }
 
@@ -910,7 +1007,7 @@ function render() {
       beep(420, 0.05);
       V = b.dataset.t;
       if (V === "spec" && R) R.specUses++;
-      syncLiveTelemetry(false);
+      syncLiveTelemetry(false, true);
       render();
     });
   }
@@ -932,7 +1029,7 @@ function render() {
         </div>
         <div class="row" style="justify-content:center">
           <button id="go">Encender sistema</button>
-          <button class="alt" id="dashIntroBtn">Abrir Dashboard en vivo</button>
+          <button class="alt" id="dashIntroBtn">Abrir Dashboard</button>
         </div>
       </div>`;
   } else if (V === "mail") {
@@ -1102,7 +1199,7 @@ function render() {
     const jsonStr = JSON.stringify(snap, null, 2);
     h = `
       <h3>REGISTRO DE VALIDACION COMPLETO // OP. ${S.playerName.toUpperCase()}</h3>
-      <p class="mut">Los datos ya fueron sincronizados en tiempo real con el Dashboard. Tambien puedes copiar o descargar el respaldo JSON.</p>
+      <p class="mut">${activeDbUrl ? "Tus datos fueron enviados automaticamente a la nube para el Dashboard." : "Puedes copiar o descargar tu archivo JSON de respaldo."}</p>
       <textarea id="outJson" readonly>${jsonStr}</textarea>
       <div class="row">
         <button id="openDashEndBtn">📊 Ver en Dashboard</button>
@@ -1132,8 +1229,8 @@ function bindEvents(w) {
     start(val);
   });
 
-  on("#dashIntroBtn", () => window.open("dashboard.html", "_blank"));
-  on("#openDashEndBtn", () => window.open("dashboard.html", "_blank"));
+  on("#dashIntroBtn", openDashboardWindow);
+  on("#openDashEndBtn", openDashboardWindow);
 
   w.querySelectorAll("[data-m]").forEach(el => el.onclick = () => {
     markFirst();
@@ -1142,7 +1239,7 @@ function bindEvents(w) {
   });
 
   const nb = w.querySelector("#notesBox");
-  if (nb) nb.oninput = e => { notes = e.target.value; syncLiveTelemetry(false); };
+  if (nb) nb.oninput = e => { notes = e.target.value; syncLiveTelemetry(false, false); };
 
   on("#sendSatMail", () => {
     if (!savedSatLog) return;
@@ -1158,7 +1255,7 @@ function bindEvents(w) {
       `Registro orbital archivado:\n${log}\n\nBonificacion acreditada: +$85 CR.`
     );
     msg("[OK] Reporte satelital enviado (+$85 CR)", 1);
-    syncLiveTelemetry(false);
+    syncLiveTelemetry(false, true);
     updTop();
     render();
   });
@@ -1195,13 +1292,13 @@ function bindEvents(w) {
       const x = (e.clientX - r.left) * 640 / r.width + cam.x;
       const y = (e.clientY - r.top) * 300 / r.height + cam.y;
       const hit = sigs.find(s => (s.st === "echo" || s.st === "align" || s.st === "dl") && Math.hypot(s.x - x, s.y - y) < 32);
-      if (!hit) { if (R) R.invalid++; syncLiveTelemetry(false); return; }
+      if (!hit) { if (R) R.invalid++; syncLiveTelemetry(false, false); return; }
       if (hit.st === "echo") {
         if (en < 8) { if (R) R.invalid++; beep(180, 0.15, "sawtooth"); return msg("[ERR] Energia insuficiente (8 PWR)", 0); }
         en -= 8;
         hit.st = "align";
         beep(320, 0.12, "triangle");
-        syncLiveTelemetry(false);
+        syncLiveTelemetry(false, true);
         updTop();
       }
     };
@@ -1250,7 +1347,7 @@ function bindEvents(w) {
     en -= 2;
     if (R) R.repeats++;
     playSignalAudio(cur);
-    syncLiveTelemetry(false);
+    syncLiveTelemetry(false, false);
     updTop();
     render();
   });
@@ -1259,7 +1356,7 @@ function bindEvents(w) {
     if (!cur || !isTuned(cur)) return;
     cur.fixed = true;
     beep(620, 0.08);
-    syncLiveTelemetry(false);
+    syncLiveTelemetry(false, true);
     render();
   });
 
@@ -1301,7 +1398,7 @@ function bindEvents(w) {
       assignRef: activeAssign()
     });
     ensureSectorDiversity();
-    syncLiveTelemetry(false);
+    syncLiveTelemetry(false, true);
     render();
   });
 
@@ -1326,7 +1423,7 @@ function bindEvents(w) {
         if (R) R.fix += +((performance.now() - srv.t) / 1000).toFixed(1);
         srv = null;
         msg("[OK] Servidor restablecido", 1);
-        syncLiveTelemetry(false);
+        syncLiveTelemetry(false, true);
       }
       render();
     } else {
@@ -1349,7 +1446,7 @@ function bindEvents(w) {
     if (k === "b") { cap = 100 + 25 * G.b; en = Math.min(cap, en + 25); }
     beep(660, 0.1);
     msg("[OK] Mejora instalada", 1);
-    syncLiveTelemetry(false);
+    syncLiveTelemetry(false, true);
     updTop();
     render();
   });
@@ -1365,7 +1462,7 @@ function bindEvents(w) {
       dif: +$("#q_dif").value,
       fun: +$("#q_fun").value
     };
-    syncLiveTelemetry(true);
+    syncLiveTelemetry(true, true);
     V = "end";
     render();
   });
